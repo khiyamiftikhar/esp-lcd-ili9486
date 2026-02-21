@@ -1,0 +1,59 @@
+menu "ILI9486 Panel Driver"
+
+    config ILI9486_SPI_HOST
+        int "SPI Host (0=SPI1, 1=SPI2, 2=SPI3)"
+        default 1
+        help
+            SPI peripheral to use. SPI2=1 (HSPI), SPI3=2 (VSPI).
+
+    config ILI9486_PIN_MOSI
+        int "MOSI GPIO"
+        default 23
+
+    config ILI9486_PIN_MISO
+        int "MISO GPIO (-1 if unused)"
+        default -1
+
+    config ILI9486_PIN_CLK
+        int "CLK GPIO"
+        default 18
+
+    config ILI9486_PIN_CS
+        int "CS GPIO"
+        default 5
+
+    config ILI9486_PIN_DC
+        int "DC GPIO"
+        default 21
+
+    config ILI9486_PIN_RST
+        int "RST GPIO"
+        default 22
+
+    config ILI9486_PIN_BL
+        int "Backlight GPIO"
+        default 4
+
+    config ILI9486_BL_ACTIVE_HIGH
+        bool "Backlight active high"
+        default y
+        help
+            If your module's backlight turns on with GPIO high, enable this.
+            Disable if active low.
+
+    config ILI9486_PIXEL_CLK_HZ
+        int "SPI pixel clock Hz"
+        default 5000000
+        help
+            5000000 (5MHz) is safe for most modules.
+            Some can do 10-20MHz but verify with a logic analyser.
+
+    config ILI9486_H_RES
+        int "Horizontal resolution"
+        default 320
+
+    config ILI9486_V_RES
+        int "Vertical resolution"
+        default 480
+
+endmenu

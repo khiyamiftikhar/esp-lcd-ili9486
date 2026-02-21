@@ -1,0 +1,20 @@
+esp-lcd-ili9486/
+├── CMakeLists.txt
+├── idf_component.yml
+├── include/
+│   └── esp_ili9486_panel.h
+├── src/
+│   └── esp_ili9486_panel.c
+├── test/                        ← unity test cases ONLY (no app_main)
+│   ├── CMakeLists.txt
+│   └── test_panel.c             ← just TEST_CASE functions
+├── test_app/                    ← standalone buildable app that runs the tests
+│   ├── CMakeLists.txt
+│   └── main/
+│       ├── app_main.c           ← init + UNITY_BEGIN/RUN_TEST/UNITY_END
+│       └── ili9486_hw_init.c    ← hw init
+└── examples/
+    └── basic_init/
+        ├── CMakeLists.txt
+        └── main/
+            └── app_main.c       ← init + raw draws for humans
