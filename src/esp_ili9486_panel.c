@@ -113,7 +113,7 @@ static void ili9486_send_init_sequence(esp_lcd_panel_io_handle_t io)
     ili9486_send(io, ILI9486_CMD_COLMOD, (uint8_t[]){0x66}, 1);
 
 
-    ili9486_send(io, ILI9486_CMD_MADCTL, (uint8_t[]){0x48}, 1);
+    //ili9486_send(io, ILI9486_CMD_MADCTL, (uint8_t[]){0x08}, 1);
 
     ili9486_send(io, ILI9486_CMD_DISPON, NULL, 0);
     vTaskDelay(pdMS_TO_TICKS(20));
@@ -249,9 +249,9 @@ static esp_err_t panel_ili9486_mirror(esp_lcd_panel_t *panel, bool mx, bool my)
     ili9486_panel_t *ili = __containerof(panel, ili9486_panel_t, base);
     if (mx) ili->madctl |=  0x40; else ili->madctl &= ~0x40;
     if (my) ili->madctl |=  0x80; else ili->madctl &= ~0x80;
+    //ESP_LOGI(TAG, "mirror called mx=%d my=%d madctl=0x%02X", mx, my, ili->madctl);
     return ili9486_send(ili->io, ILI9486_CMD_MADCTL, &ili->madctl, 1);
 }
-
 static esp_err_t panel_ili9486_swap_xy(esp_lcd_panel_t *panel, bool swap)
 {
     ili9486_panel_t *ili = __containerof(panel, ili9486_panel_t, base);
