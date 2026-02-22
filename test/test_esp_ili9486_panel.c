@@ -76,12 +76,19 @@ static void draw_pixel(esp_lcd_panel_handle_t panel, int x, int y, uint16_t colo
 
  void setUp(){
 
-    esp_err_t ret=ili9486_display_init();
-
-
+    
+    esp_lcd_panel_handle_t panel = ili9486_display_get_panel();
+    if(panel==NULL) {
+        esp_err_t ret=ili9486_display_init();
+        TEST_ASSERT_EQUAL(ESP_OK, ret);
+        panel = ili9486_display_get_panel();
+    }
+    fill_screen(panel, BLACK);
+    vTaskDelay(pdMS_TO_TICKS(500));
 
  }
-TEST_CASE("single pixel at origin", "[ili9486]")
+
+ TEST_CASE("single pixel at origin", "[ili9486]")
 {
     esp_lcd_panel_handle_t panel = ili9486_display_get_panel();
     TEST_ASSERT_NOT_NULL(panel);
