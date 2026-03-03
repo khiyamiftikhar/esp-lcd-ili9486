@@ -1,0 +1,7 @@
+version: "1.0.0"
+description: "ESP-IDF driver for ILI9486 LCD controller"
+url: "https://github.com/khiyamiftikhar/esp-lcd-ili9486"
+license: "MIT"
+
+dependencies:
+  idf: ">=5.5.2"
