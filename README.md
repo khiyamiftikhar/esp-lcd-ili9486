@@ -40,14 +40,14 @@ Other ESP32 variants should work if SPI is supported.
 ## Via ESP-IDF Component Manager (Recommended)
 
 ```bash
-idf.py add-dependency "your-namespace/esp-lcd-ili9486^1.0.0"
+idf.py add-dependency "khiyamiftikhar/esp-lcd-ili9486^1.0.0"
 ```
 
 Or add to your project’s `idf_component.yml`:
 
 ```yaml
 dependencies:
-  your-namespace/esp-lcd-ili9486: "^1.0.0"
+  khiyamiftikhar/esp-lcd-ili9486: "^1.0.0"
 ```
 
 After adding the dependency:
@@ -64,7 +64,7 @@ Component config → ILI9486 Panel Driver
 Clone into your project's `components/` directory:
 
 ```bash
-git clone https://github.com/your-username/esp-lcd-ili9486 components/esp-lcd-ili9486
+git clone https://github.com/khiyamiftikhar/esp-lcd-ili9486 components/esp-lcd-ili9486
 ```
 
 ---
