@@ -25,6 +25,17 @@ The driver handles the SPI-specific requirements of the ILI9486, including 16-bi
 * Includes working raw and LVGL examples
 * Includes Unity hardware verification tests
 
+
+---
+# Chip Support
+
+| Chip     | Status |
+|----------|--------|
+| ESP32    | ✅ Tested |
+| ESP32-S2 | ⚠️ Expected to work |
+| ESP32-S3 | ⚠️ Expected to work |
+| ESP32-C3 | ⚠️ Expected to work |
+
 ---
 
 # Installation
@@ -32,14 +43,14 @@ The driver handles the SPI-specific requirements of the ILI9486, including 16-bi
 ## Using ESP-IDF Component Manager (Recommended)
 
 ```bash
-idf.py add-dependency "khiyamiftikhar/esp-lcd-ili9486^1.0.1"
+idf.py add-dependency "khiyamiftikhar/esp-lcd-ili9486^1.0.2"
 ```
 
 Or in your project’s `idf_component.yml`:
 
 ```yaml
 dependencies:
-  khiyamiftikhar/esp-lcd-ili9486: "^1.0.1"
+  khiyamiftikhar/esp-lcd-ili9486: "^1.0.2"
 ```
 
 Then configure via:
@@ -186,7 +197,7 @@ Unity tests verify:
  
  # Example Connections
 
-![3.5 inch RPI](https://raw.githubusercontent.com/khiyamiftikhar/esp-lcd-ili9486/v1.0.1/docs/RPI_3_5.jpg)
+![3.5 inch RPI](https://raw.githubusercontent.com/khiyamiftikhar/esp-lcd-ili9486/v1.0.2/docs/RPI_3_5.jpg)
 
 ---
 # License
