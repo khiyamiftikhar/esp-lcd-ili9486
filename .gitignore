@@ -3,3 +3,5 @@ build/
 dependencies.lock
 sdkconfig
 managed_components
+dist/
+docs/
