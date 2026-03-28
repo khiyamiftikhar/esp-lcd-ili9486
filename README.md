@@ -32,14 +32,14 @@ The driver handles the SPI-specific requirements of the ILI9486, including 16-bi
 ## Using ESP-IDF Component Manager (Recommended)
 
 ```bash
-idf.py add-dependency "khiyamiftikhar/esp-lcd-ili9486^1.0.0"
+idf.py add-dependency "khiyamiftikhar/esp-lcd-ili9486^1.0.1"
 ```
 
 Or in your project’s `idf_component.yml`:
 
 ```yaml
 dependencies:
-  khiyamiftikhar/esp-lcd-ili9486: "^1.0.0"
+  khiyamiftikhar/esp-lcd-ili9486: "^1.0.1"
 ```
 
 Then configure via:
@@ -181,7 +181,14 @@ Unity tests verify:
 * Some module variants may require init sequence adjustments
 
 ---
+#Example Connection
+ The diagram below shows connections as in sdkconfig.defaults for 3.5 inch RPI LCD
+ 
+ # Example Connections
 
+![3.5 inch RPI](https://raw.githubusercontent.com/khiyamiftikhar/esp-lcd-ili9468/v1.0.1/docs/rpi_3_5_inch.png)
+
+---
 # License
 
 MIT License — see LICENSE file.
