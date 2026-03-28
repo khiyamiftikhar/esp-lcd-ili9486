@@ -186,7 +186,7 @@ Unity tests verify:
  
  # Example Connections
 
-![3.5 inch RPI](https://raw.githubusercontent.com/khiyamiftikhar/esp-lcd-ili9468/v1.0.1/docs/rpi_3_5_inch.png)
+![3.5 inch RPI](https://raw.githubusercontent.com/khiyamiftikhar/esp-lcd-ili9486/v1.0.1/docs/rpi_3_5_inch.png)
 
 ---
 # License
