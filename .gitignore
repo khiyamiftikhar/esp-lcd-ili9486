@@ -4,3 +4,4 @@ dependencies.lock
 sdkconfig
 managed_components
 dist/
+docs/rpi_3_5_inch.png
