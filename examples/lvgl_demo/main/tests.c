@@ -199,20 +199,16 @@ void demo_test_styled_buttons(void)
 // Sweeps 0 → 100 three times, changing the indicator colour each pass (R/G/B).
 // Verifies continuous flushing AND per-channel colour accuracy over time.
 
-static void run_bar_pass(lv_obj_t *bar, lv_obj_t *scr,
+static void run_bar_pass(lv_obj_t *bar, lv_obj_t *pass_lbl,
                           lv_color_t color, const char *pass_name)
 {
-    // Update bar indicator colour and pass label
     if (lvgl_port_lock(0)) {
         lv_obj_set_style_bg_color(bar, color, LV_PART_INDICATOR);
-
-        lv_obj_t *lbl = add_label(scr, pass_name, color, &lv_font_montserrat_14);
-        lv_obj_align(lbl, LV_ALIGN_CENTER, 0, 50);
-
+        lv_label_set_text(pass_lbl, pass_name);
+        lv_obj_set_style_text_color(pass_lbl, color, 0);
         lvgl_port_unlock();
     }
 
-    // Animate 0 → 100
     for (int v = 0; v <= 100; v += 2) {
         if (lvgl_port_lock(0)) {
             lv_bar_set_value(bar, v, LV_ANIM_ON);
@@ -228,8 +224,9 @@ void demo_test_colour_bar(void)
 {
     ESP_LOGI(TAG, "Test 5: colour-cycling progress bar");
 
-    lv_obj_t *scr  = NULL;
-    lv_obj_t *bar  = NULL;
+    lv_obj_t *scr     = NULL;
+    lv_obj_t *bar     = NULL;
+    lv_obj_t *pass_lbl = NULL;
 
     if (!lvgl_port_lock(0)) return;
 
@@ -244,7 +241,11 @@ void demo_test_colour_bar(void)
     lv_obj_center(bar);
     lv_bar_set_range(bar, 0, 100);
     lv_bar_set_value(bar, 0, LV_ANIM_OFF);
-    lv_obj_set_style_bg_color(bar, lv_color_make(50, 50, 50), 0);  // track
+    lv_obj_set_style_bg_color(bar, lv_color_make(50, 50, 50), 0);
+
+    // Create label once — each pass updates it in-place
+    pass_lbl = add_label(scr, "", lv_color_white(), &lv_font_montserrat_14);
+    lv_obj_align(pass_lbl, LV_ALIGN_CENTER, 0, 50);
 
     lvgl_port_unlock();
 
@@ -255,9 +256,8 @@ void demo_test_colour_bar(void)
     };
 
     for (int i = 0; i < 3; i++) {
-        run_bar_pass(bar, scr, kPasses[i].col, kPasses[i].name);
+        run_bar_pass(bar, pass_lbl, kPasses[i].col, kPasses[i].name);
     }
 
     delay_ms(1000);
 }
-
