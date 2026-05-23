@@ -43,14 +43,14 @@ The driver handles the SPI-specific requirements of the ILI9486, including 16-bi
 ## Using ESP-IDF Component Manager (Recommended)
 
 ```bash
-idf.py add-dependency "khiyamiftikhar/esp-lcd-ili9486^1.0.3"
+idf.py add-dependency "khiyamiftikhar/esp-lcd-ili9486^1.0.4"
 ```
 
 Or in your project’s `idf_component.yml`:
 
 ```yaml
 dependencies:
-  khiyamiftikhar/esp-lcd-ili9486: "^1.0.3"
+  khiyamiftikhar/esp-lcd-ili9486: "^1.0.4"
 ```
 
 Then configure via:
