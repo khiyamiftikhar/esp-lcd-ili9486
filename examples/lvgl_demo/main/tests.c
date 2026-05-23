@@ -1,174 +1,263 @@
-
+// ─── colour_demo.c ────────────────────────────────────────────────────────────
+#include "tests.h"
 #include "esp_log.h"
-#include "esp_err.h"
-#include "esp_check.h"
-
-#include "driver/spi_master.h"
-#include "driver/gpio.h"
-
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "esp_lvgl_port.h"
+#include "lvgl.h"
 
+#define TAG "COLOUR_DEMO"
 
-#include "esp_lcd_panel_io.h"
-#include "esp_lcd_panel_vendor.h"
-#include "esp_ili9486_panel.h"
-#include "tests.h"  
+// Panel dimensions — adjust to match your display
+#define PANEL_W 320
+#define PANEL_H 480
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
-#define LCD_W  320
-#define LCD_H  480
-
-// ── RGB565 helpers ────────────────────────────────────────────────────────────
-// NOTE: ILI9486 is BGR so colours may appear swapped — that's useful info!
-#define RGB565(r,g,b)  ((uint16_t)((((r)&0xF8)<<8)|(((g)&0xFC)<<3)|((b)>>3)))
-#define WHITE   0xFFFF
-#define BLACK   0x0000
-#define RED     RGB565(255,0,0)
-#define GREEN   RGB565(0,255,0)
-#define BLUE    RGB565(0,0,255)
-#define YELLOW  RGB565(255,255,0)
-#define CYAN    RGB565(0,255,255)
-#define MAGENTA RGB565(255,0,255)
-
-static const char *TAG = "TESTS";
-static uint16_t row_buf[LCD_W];
-
-// ── Fill a rectangle with a solid colour ─────────────────────────────────────
-static void fill_rect(esp_lcd_panel_handle_t panel,
-                      int x0, int y0, int x1, int y1,
-                      uint16_t colour)
+static lv_obj_t *get_clean_screen(lv_color_t bg)
 {
-    int w = x1 - x0 + 1;
-    for (int i = 0; i < w; i++) row_buf[i] = colour;
+    lv_obj_t *scr = lv_scr_act();
+    lv_obj_clean(scr);
+    lv_obj_set_style_bg_color(scr, bg, 0);
+    return scr;
+}
 
-    for (int y = y0; y <= y1; y++) {
-        esp_lcd_panel_draw_bitmap(panel, x0, y, x1 + 1, y + 1, row_buf);
+static lv_obj_t *add_label(lv_obj_t *parent, const char *text,
+                            lv_color_t color, const lv_font_t *font)
+{
+    lv_obj_t *lbl = lv_label_create(parent);
+    lv_label_set_text(lbl, text);
+    lv_obj_set_style_text_color(lbl, color, 0);
+    lv_obj_set_style_text_font(lbl, font, 0);
+    return lbl;
+}
+
+static void delay_ms(uint32_t ms)
+{
+    vTaskDelay(pdMS_TO_TICKS(ms));
+}
+
+// ─── Test 1: Full-screen primary colour flashes ───────────────────────────────
+// Fills the whole screen R → G → B → White.
+// A byte-swap bug makes Red appear Blue and vice-versa.
+
+void demo_test_primary_flashes(void)
+{
+    ESP_LOGI(TAG, "Test 1: primary colour flashes");
+
+    static const struct { const char *name; lv_color_t col; } kPrimaries[] = {
+        { "RED",   { .red = 255, .green =   0, .blue =   0 } },
+        { "GREEN", { .red =   0, .green = 255, .blue =   0 } },
+        { "BLUE",  { .red =   0, .green =   0, .blue = 255 } },
+        { "WHITE", { .red = 255, .green = 255, .blue = 255 } },
+    };
+
+    for (int i = 0; i < 4; i++) {
+        if (!lvgl_port_lock(0)) continue;
+
+        lv_obj_t *scr = get_clean_screen(kPrimaries[i].col);
+        bool is_white = (i == 3);
+        lv_obj_t *lbl = add_label(scr, kPrimaries[i].name,
+                                   is_white ? lv_color_black() : lv_color_white(),
+                                   &lv_font_montserrat_14);
+        lv_obj_center(lbl);
+
+        lvgl_port_unlock();
+        delay_ms(800);
     }
 }
 
-// ── Fill entire screen ────────────────────────────────────────────────────────
-static void fill_screen(esp_lcd_panel_handle_t panel, uint16_t colour)
+// ─── Test 2: Rainbow horizontal stripes ───────────────────────────────────────
+// Seven ROYGBIV bands in one frame.
+// Wrong hue on any band → RGB channel order is incorrect.
+
+void demo_test_rainbow_stripes(void)
 {
-    fill_rect(panel, 0, 0, LCD_W - 1, LCD_H - 1, colour);
-}
+    ESP_LOGI(TAG, "Test 2: rainbow stripes");
 
-// ── Single pixel ──────────────────────────────────────────────────────────────
-static void draw_pixel(esp_lcd_panel_handle_t panel, int x, int y, uint16_t colour)
-{
-    esp_lcd_panel_draw_bitmap(panel, x, y, x + 1, y + 1, &colour);
-}
+    static const struct { const char *name; lv_color_t col; } kRainbow[] = {
+        { "Red",    { .red = 255, .green =   0, .blue =   0 } },
+        { "Orange", { .red = 255, .green = 127, .blue =   0 } },
+        { "Yellow", { .red = 255, .green = 255, .blue =   0 } },
+        { "Green",  { .red =   0, .green = 255, .blue =   0 } },
+        { "Blue",   { .red =   0, .green =   0, .blue = 255 } },
+        { "Indigo", { .red =  75, .green =   0, .blue = 130 } },
+        { "Violet", { .red = 148, .green =   0, .blue = 211 } },
+    };
+    const int kBands      = sizeof(kRainbow) / sizeof(kRainbow[0]);
+    const int kStripeH    = PANEL_H / kBands;
 
+    if (!lvgl_port_lock(0)) return;
 
-// TEST 1: Single pixel in top-left corner
-// Pass: one coloured dot at 0,0
-// Fail (nothing): draw_bitmap never reaches display
-void test1_single_pixel(esp_lcd_panel_handle_t panel)
-{
-    ESP_LOGI(TAG, "TEST 1: Single RED pixel at (0,0)");
-    fill_screen(panel, BLACK);
-    vTaskDelay(pdMS_TO_TICKS(500));
-    draw_pixel(panel, 0, 0, RED);
-    vTaskDelay(pdMS_TO_TICKS(2000));
-    ESP_LOGI(TAG, "TEST 1: Expect ONE red dot top-left on black");
-}
+    lv_obj_t *scr = get_clean_screen(lv_color_black());
 
-// TEST 2: Full screen solid colours
-// Pass: entire screen changes colour
-// Fail (strip only): RASET addressing wrong
-void test2_solid_colours(esp_lcd_panel_handle_t panel)
-{
-    ESP_LOGI(TAG, "TEST 2: Solid WHITE");
-    fill_screen(panel, WHITE);
-    vTaskDelay(pdMS_TO_TICKS(2000));
+    for (int i = 0; i < kBands; i++) {
+        lv_obj_t *band = lv_obj_create(scr);
+        lv_obj_set_size(band, PANEL_W, kStripeH);
+        lv_obj_set_pos(band, 0, i * kStripeH);
+        lv_obj_set_style_bg_color(band, kRainbow[i].col, 0);
+        lv_obj_set_style_border_width(band, 0, 0);
+        lv_obj_set_style_radius(band, 0, 0);
+        lv_obj_set_style_pad_all(band, 0, 0);
 
-    ESP_LOGI(TAG, "TEST 2: Solid RED");
-    fill_screen(panel, RED);
-    vTaskDelay(pdMS_TO_TICKS(2000));
-
-    ESP_LOGI(TAG, "TEST 2: Solid GREEN");
-    fill_screen(panel, GREEN);
-    vTaskDelay(pdMS_TO_TICKS(2000));
-
-    ESP_LOGI(TAG, "TEST 2: Solid BLUE");
-    fill_screen(panel, BLUE);
-    vTaskDelay(pdMS_TO_TICKS(2000));
-
-    ESP_LOGI(TAG, "TEST 2 notes:");
-    ESP_LOGI(TAG, "  All correct         -> colour format OK");
-    ESP_LOGI(TAG, "  RED shows as BLUE   -> BGR/RGB swapped, toggle MADCTL bit 3");
-    ESP_LOGI(TAG, "  Dim grey only       -> pixel data byte order wrong (swap_bytes)");
-    ESP_LOGI(TAG, "  Only top strip      -> RASET window addressing wrong");
-}
-
-// TEST 3: Horizontal colour bars — tests Y window addressing
-// Pass: 6 equal horizontal bands each 80px tall
-// Fail: bands wrong height or overlapping = RASET problem
-void test3_h_bars(esp_lcd_panel_handle_t panel)
-{
-    ESP_LOGI(TAG, "TEST 3: Horizontal colour bars (tests RASET)");
-    fill_rect(panel, 0,   0,   319,  79, RED);
-    fill_rect(panel, 0,  80,   319, 159, GREEN);
-    fill_rect(panel, 0, 160,   319, 239, BLUE);
-    fill_rect(panel, 0, 240,   319, 319, YELLOW);
-    fill_rect(panel, 0, 320,   319, 399, CYAN);
-    fill_rect(panel, 0, 400,   319, 479, MAGENTA);
-    vTaskDelay(pdMS_TO_TICKS(3000));
-    ESP_LOGI(TAG, "TEST 3: Expect 6 equal horizontal bands R/G/B/Y/C/M top to bottom");
-}
-
-// TEST 4: Vertical colour bars — tests X window addressing
-// Pass: 4 equal vertical bands each 80px wide
-// Fail: bands wrong width = CASET problem
-void test4_v_bars(esp_lcd_panel_handle_t panel)
-{
-    ESP_LOGI(TAG, "TEST 4: Vertical colour bars (tests CASET)");
-    fill_rect(panel,   0, 0,  79, 479, RED);
-    fill_rect(panel,  80, 0, 159, 479, GREEN);
-    fill_rect(panel, 160, 0, 239, 479, BLUE);
-    fill_rect(panel, 240, 0, 319, 479, WHITE);
-    vTaskDelay(pdMS_TO_TICKS(3000));
-    ESP_LOGI(TAG, "TEST 4: Expect 4 equal vertical bands R/G/B/W left to right");
-}
-
-// TEST 5: Corner markers — tests orientation / MADCTL
-// Pass: correct colours in correct corners
-// Fail: corners swapped = mirror/swap_xy wrong
-void test5_corners(esp_lcd_panel_handle_t panel)
-{
-    ESP_LOGI(TAG, "TEST 5: Corner markers (tests MADCTL orientation)");
-    fill_screen(panel, BLACK);
-    vTaskDelay(pdMS_TO_TICKS(300));
-
-    // 30x30 squares in each corner
-    fill_rect(panel,   0,   0,  29,  29, RED);     // top-left     = RED
-    fill_rect(panel, 290,   0, 319,  29, GREEN);   // top-right    = GREEN
-    fill_rect(panel,   0, 450,  29, 479, BLUE);    // bottom-left  = BLUE
-    fill_rect(panel, 290, 450, 319, 479, WHITE);   // bottom-right = WHITE
-
-    vTaskDelay(pdMS_TO_TICKS(3000));
-    ESP_LOGI(TAG, "TEST 5: Expect TL=RED  TR=GREEN  BL=BLUE  BR=WHITE");
-    ESP_LOGI(TAG, "        If mirrored horizontally: swap MADCTL bit 6 (MX)");
-    ESP_LOGI(TAG, "        If mirrored vertically:   swap MADCTL bit 7 (MY)");
-    ESP_LOGI(TAG, "        If rotated 90:            swap MADCTL bit 5 (MV)");
-}
-
-// TEST 6: Gradient — tests pixel-level accuracy across full screen
-// Pass: smooth gradient across full screen
-// Fail: banding or corruption = partial flush or pixel format issue
-void test6_gradient(esp_lcd_panel_handle_t panel)
-{
-    ESP_LOGI(TAG, "TEST 6: Full screen gradient (tests pixel accuracy)");
-    for (int y = 0; y < LCD_H; y++) {
-        uint8_t val = (y * 255) / (LCD_H - 1);
-        uint16_t colour = RGB565(val, 0, 255 - val);  // red->blue gradient
-        for (int x = 0; x < LCD_W; x++) row_buf[x] = colour;
-        esp_lcd_panel_draw_bitmap(panel, 0, y, LCD_W, y + 1, row_buf);
+        lv_obj_t *lbl = add_label(band, kRainbow[i].name,
+                                   lv_color_white(), &lv_font_montserrat_14);
+        lv_obj_center(lbl);
     }
-    vTaskDelay(pdMS_TO_TICKS(3000));
-    ESP_LOGI(TAG, "TEST 6: Expect smooth red->blue gradient top to bottom");
-    ESP_LOGI(TAG, "        Banding = RASET byte ordering issue");
-    ESP_LOGI(TAG, "        Colour wrong hue = BGR/RGB issue");
+
+    lvgl_port_unlock();
+    delay_ms(3000);
 }
 
-// ─────────────────────────────────
+// ─── Test 3: Coloured labels at corners + centre ──────────────────────────────
+// Verifies CASET/RASET window addressing across the full pixel grid.
+
+void demo_test_corner_labels(void)
+{
+    ESP_LOGI(TAG, "Test 3: corner labels");
+
+    static const struct {
+        const char  *txt;
+        lv_color_t   col;
+        lv_align_t   align;
+    } kCorners[] = {
+        { "TOP-LEFT",  { .red = 255, .green =  80, .blue =  80 }, LV_ALIGN_TOP_LEFT     },
+        { "TOP-RIGHT", { .red =  80, .green = 255, .blue =  80 }, LV_ALIGN_TOP_RIGHT    },
+        { "BOT-LEFT",  { .red =  80, .green =  80, .blue = 255 }, LV_ALIGN_BOTTOM_LEFT  },
+        { "BOT-RIGHT", { .red = 255, .green = 255, .blue =   0 }, LV_ALIGN_BOTTOM_RIGHT },
+        { "CENTRE",    { .red =   0, .green = 255, .blue = 255 }, LV_ALIGN_CENTER       },
+    };
+
+    if (!lvgl_port_lock(0)) return;
+
+    lv_obj_t *scr = get_clean_screen(lv_color_make(20, 20, 20));
+
+    for (int i = 0; i < 5; i++) {
+        lv_obj_t *lbl = add_label(scr, kCorners[i].txt,
+                                   kCorners[i].col, &lv_font_montserrat_14);
+        lv_obj_align(lbl, kCorners[i].align, 5, 0);
+    }
+
+    lvgl_port_unlock();
+    delay_ms(2000);
+}
+
+// ─── Test 4: Styled buttons ───────────────────────────────────────────────────
+// Overrides the default theme colour so we can verify arbitrary RGB values
+// render correctly on widget backgrounds and borders.
+
+static lv_obj_t *create_coloured_button(lv_obj_t *parent,
+                                         const char *label_text,
+                                         lv_color_t  bg,
+                                         lv_color_t  bg_pressed,
+                                         lv_color_t  border,
+                                         lv_color_t  text_col,
+                                         lv_align_t  align,
+                                         lv_coord_t  y_offset)
+{
+    lv_obj_t *btn = lv_btn_create(parent);
+    lv_obj_set_size(btn, 180, 55);
+    lv_obj_align(btn, align, 0, y_offset);
+    lv_obj_set_style_bg_color(btn, bg, 0);
+    lv_obj_set_style_bg_color(btn, bg_pressed, LV_STATE_PRESSED);
+    lv_obj_set_style_border_color(btn, border, 0);
+    lv_obj_set_style_border_width(btn, 2, 0);
+
+    lv_obj_t *lbl = add_label(btn, label_text, text_col, &lv_font_montserrat_14);
+    lv_obj_center(lbl);
+
+    return btn;
+}
+
+void demo_test_styled_buttons(void)
+{
+    ESP_LOGI(TAG, "Test 4: styled buttons");
+
+    if (!lvgl_port_lock(0)) return;
+
+    lv_obj_t *scr = get_clean_screen(lv_color_make(30, 30, 30));
+
+    create_coloured_button(scr, "MAGENTA",
+                           lv_color_make(200,   0, 200),
+                           lv_color_make(255,  80, 255),
+                           lv_color_make(255, 180, 255),
+                           lv_color_white(),
+                           LV_ALIGN_CENTER, -50);
+
+    create_coloured_button(scr, "CYAN",
+                           lv_color_make(  0, 180, 180),
+                           lv_color_make(  0, 255, 255),
+                           lv_color_make(150, 255, 255),
+                           lv_color_make(20, 20, 20),
+                           LV_ALIGN_CENTER, +50);
+
+    lvgl_port_unlock();
+    delay_ms(2500);
+}
+
+// ─── Test 5: Colour-cycling animated progress bar ─────────────────────────────
+// Sweeps 0 → 100 three times, changing the indicator colour each pass (R/G/B).
+// Verifies continuous flushing AND per-channel colour accuracy over time.
+
+static void run_bar_pass(lv_obj_t *bar, lv_obj_t *scr,
+                          lv_color_t color, const char *pass_name)
+{
+    // Update bar indicator colour and pass label
+    if (lvgl_port_lock(0)) {
+        lv_obj_set_style_bg_color(bar, color, LV_PART_INDICATOR);
+
+        lv_obj_t *lbl = add_label(scr, pass_name, color, &lv_font_montserrat_14);
+        lv_obj_align(lbl, LV_ALIGN_CENTER, 0, 50);
+
+        lvgl_port_unlock();
+    }
+
+    // Animate 0 → 100
+    for (int v = 0; v <= 100; v += 2) {
+        if (lvgl_port_lock(0)) {
+            lv_bar_set_value(bar, v, LV_ANIM_ON);
+            lvgl_port_unlock();
+        }
+        delay_ms(40);
+    }
+
+    delay_ms(400);
+}
+
+void demo_test_colour_bar(void)
+{
+    ESP_LOGI(TAG, "Test 5: colour-cycling progress bar");
+
+    lv_obj_t *scr  = NULL;
+    lv_obj_t *bar  = NULL;
+
+    if (!lvgl_port_lock(0)) return;
+
+    scr = get_clean_screen(lv_color_make(15, 15, 15));
+
+    lv_obj_t *title = add_label(scr, "Colour Progress Bar",
+                                 lv_color_white(), &lv_font_montserrat_14);
+    lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 20);
+
+    bar = lv_bar_create(scr);
+    lv_obj_set_size(bar, 280, 35);
+    lv_obj_center(bar);
+    lv_bar_set_range(bar, 0, 100);
+    lv_bar_set_value(bar, 0, LV_ANIM_OFF);
+    lv_obj_set_style_bg_color(bar, lv_color_make(50, 50, 50), 0);  // track
+
+    lvgl_port_unlock();
+
+    static const struct { lv_color_t col; const char *name; } kPasses[] = {
+        { { .red = 255, .green =  50, .blue =  50 }, "RED PASS"   },
+        { { .red =  50, .green = 255, .blue =  50 }, "GREEN PASS" },
+        { { .red =  50, .green = 100, .blue = 255 }, "BLUE PASS"  },
+    };
+
+    for (int i = 0; i < 3; i++) {
+        run_bar_pass(bar, scr, kPasses[i].col, kPasses[i].name);
+    }
+
+    delay_ms(1000);
+}
+
