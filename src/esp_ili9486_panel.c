@@ -42,6 +42,8 @@ static uint8_t s_conv_buf[CONV_BUF_PIXELS * 3];
 
 static void rgb565_to_rgb666(const uint16_t *src, uint8_t *dst, size_t pixels)
 {
+
+    
     for (size_t i = 0; i < pixels; i++) {
         uint16_t p = src[i];
         dst[3*i + 0] = ((p >> 11) & 0x1F) << 3;
@@ -109,7 +111,9 @@ static void ili9486_send_init_sequence(esp_lcd_panel_io_handle_t io, uint8_t mad
         (uint8_t[]){0x0F,0x32,0x2E,0x0B,0x0D,0x05,0x47,0x75,
                     0x37,0x06,0x10,0x03,0x24,0x20,0x00}, 15);
 
-    ili9486_send(io, ILI9486_CMD_COLMOD, (uint8_t[]){0x66}, 1);
+    //ili9486_send(io, ILI9486_CMD_COLMOD, (uint8_t[]){0x66}, 1);
+    esp_lcd_panel_io_tx_param(io, ILI9486_CMD_COLMOD, NULL, 0);
+    esp_lcd_panel_io_tx_color(io, -1, (uint8_t[]){0x66}, 1);
 
     // Send MADCTL via tx_color to bypass lcd_param_bits=16 word-packing,
     // which drops single-byte parameters.
@@ -133,7 +137,7 @@ esp_err_t esp_lcd_new_panel_ili9486(esp_lcd_panel_io_handle_t io,
     // 0x48 = MX=1, BGR=1.
     // BGR=1 is required because this panel has Red and Blue physically
     // swapped on the flex cable. Without it, R↔B are swapped.
-    ili->madctl         = 0x48;
+    ili->madctl         = 0x08;
     ili->invert_color   = false;
 
     if (cfg->reset_gpio_num >= 0) {
@@ -227,6 +231,10 @@ static esp_err_t panel_ili9486_draw_bitmap(
     }
 
     rgb565_to_rgb666((const uint16_t *)color_data, s_conv_buf, pixels);
+
+
+
+    // Log area info
 
     esp_lcd_panel_io_tx_param(io, ILI9486_CMD_RAMWR, NULL, 0);
     return esp_lcd_panel_io_tx_color(io, -1, s_conv_buf, pixels * 3);
