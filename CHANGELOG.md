@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.4] - 2026-05-23
+
+### Fixed
+- MADCTL default value changed from `0x48` to `0x08` (BGR=1 only).
+  MX bit is now exclusively owned by `panel_ili9486_mirror()`, set when
+  LVGL requests `mirror_x = true`. This prevents the MX bit being
+  double-applied and gives clean separation between the hardware BGR
+  quirk and LVGL rotation state. Final wire value remains `0x48`.
+
+### Changed
+- `examples/lvgl_demo`: replaced the basic monochrome demo with a
+  full colour verification sequence:
+  - Full-screen primary colour flashes (red, green, blue, white) to
+    catch any R/B swap or missing channel at a glance
+  - Rainbow horizontal stripe panel across the full display width
+  - Styled button and label widgets with explicit colour assignments
+  - Colour-cycling progress bar (red → green → blue passes) to verify
+    continuous flushing and per-channel accuracy over time
+  - Diagnostic log hints printed on completion to help identify
+    byte-swap, RASET, or LVGL task issues
+
 ## [1.0.3] - 2026-05-21
 
 ### Fixed
