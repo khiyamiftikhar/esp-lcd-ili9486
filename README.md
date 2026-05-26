@@ -6,12 +6,12 @@
 
 ESP-IDF v5.x compatible **`esp_lcd` panel driver** for the **ILI9486 320×480 SPI TFT display**.
 
-This component integrates with Espressif’s `esp_lcd` abstraction layer and supports:
+This component integrates with Espressif's `esp_lcd` abstraction layer and supports:
 
 * Raw `esp_lcd` usage
 * LVGL integration via `lvgl_port`
 
-The driver handles the SPI-specific requirements of the ILI9486, including 16-bit command padding and RGB565 → RGB666 pixel conversion.
+The driver handles the SPI-specific requirements of the ILI9486, including CASET/RASET coordinate padding and RGB565 → RGB666 pixel conversion.
 
 ---
 
@@ -19,7 +19,7 @@ The driver handles the SPI-specific requirements of the ILI9486, including 16-bi
 
 * Compatible with the `esp_lcd` panel API
 * RGB565 → RGB666 conversion (required for SPI mode)
-* Proper 16-bit padded command and parameter handling
+* Proper coordinate window padding for CASET/RASET
 * LVGL v9 compatible
 * Configurable via Kconfig
 * Includes working raw and LVGL examples
@@ -43,14 +43,14 @@ The driver handles the SPI-specific requirements of the ILI9486, including 16-bi
 ## Using ESP-IDF Component Manager (Recommended)
 
 ```bash
-idf.py add-dependency "khiyamiftikhar/esp-lcd-ili9486^1.0.2"
+idf.py add-dependency "khiyamiftikhar/esp-lcd-ili9486^1.0.4"
 ```
 
-Or in your project’s `idf_component.yml`:
+Or in your project's `idf_component.yml`:
 
 ```yaml
 dependencies:
-  khiyamiftikhar/esp-lcd-ili9486: "^1.0.2"
+  khiyamiftikhar/esp-lcd-ili9486: "^1.0.4"
 ```
 
 Then configure via:
@@ -71,9 +71,9 @@ After:
 1. Initializing the SPI bus
 2. Creating panel IO with:
 
-   ```
-   .lcd_cmd_bits   = 16
-   .lcd_param_bits = 16
+   ```c
+   .lcd_cmd_bits   = 8
+   .lcd_param_bits = 8
    ```
 3. Creating the panel via `esp_lcd_new_panel_ili9486()`
 
@@ -93,7 +93,7 @@ For complete working initialization flows, see the examples below.
 Fully working examples are provided:
 
 * `examples/basic_init` – Raw `esp_lcd` usage (no LVGL)
-* `examples/lvgl_demo` – LVGL integration using `lvgl_port`
+* `examples/lvgl_demo` – LVGL integration with full colour verification sequence (primary colour flashes, rainbow stripes, colour-cycling progress bar)
 
 Each example is self-contained and ready to build.
 
@@ -103,16 +103,16 @@ Each example is self-contained and ready to build.
 
 The ILI9486 SPI interface has several non-obvious requirements:
 
-## 1️⃣ 16-bit Command and Parameter Mode
+## 1️⃣ 8-bit Command and Parameter Mode
 
-Commands and parameters must be sent as 16-bit values (8-bit padded with `0x00`).
+Commands and parameters must be sent as 8-bit values:
 
 ```c
-.lcd_cmd_bits   = 16
-.lcd_param_bits = 16
+.lcd_cmd_bits   = 8
+.lcd_param_bits = 8
 ```
 
-Without this, the display may ignore commands silently.
+The driver sends coordinate and pixel data via `tx_color()` to bypass parameter packing, so `lcd_param_bits = 8` is correct. Using `lcd_param_bits = 16` causes single-byte parameters (such as MADCTL and COLMOD) to be word-padded and silently ignored by the display.
 
 ---
 
@@ -192,7 +192,7 @@ Unity tests verify:
 * Some module variants may require init sequence adjustments
 
 ---
-#Example Connection
+# Example Connection
  The diagram below shows connections as in sdkconfig.defaults for 3.5 inch RPI LCD
  
  # Example Connections

@@ -1,4 +1,3 @@
-
 #include "esp_log.h"
 #include "esp_err.h"
 #include "esp_check.h"
@@ -22,7 +21,7 @@ static const char *TAG = "ili9486_display";
 
 #define LCD_HOST           CONFIG_ILI9486_SPI_HOST
 #define PIN_NUM_MOSI       CONFIG_ILI9486_PIN_MOSI
-#define PIN_NUM_MISO        -1 // not used, but required by bus config
+#define PIN_NUM_MISO       19  // Required for touch controller on shared SPI bus
 #define PIN_NUM_CLK        CONFIG_ILI9486_PIN_CLK
 #define PIN_NUM_CS         CONFIG_ILI9486_PIN_CS
 #define PIN_NUM_DC         CONFIG_ILI9486_PIN_DC
@@ -30,16 +29,13 @@ static const char *TAG = "ili9486_display";
 #define PIN_NUM_BK_LIGHT   CONFIG_ILI9486_PIN_BL
 #define LCD_PIXEL_CLOCK_HZ CONFIG_ILI9486_PIXEL_CLK_HZ
 #define LCD_H_RES          CONFIG_ILI9486_H_RES
-#define LCD_V_RES          CONFIG_ILI9486_V_RES/* ------------------------- */
+#define LCD_V_RES          CONFIG_ILI9486_V_RES
+/* ------------------------- */
 
 // ─── ili9486_display.c ──────────────────────────────────────────────────────
 
-
 static esp_lcd_panel_io_handle_t s_io_handle = NULL;
 static esp_lcd_panel_handle_t   s_panel      = NULL;
-
-
-
 
 esp_err_t ili9486_display_init(void)
 {
@@ -61,15 +57,14 @@ esp_err_t ili9486_display_init(void)
 
     /* ── Panel IO ──────────────────────────────────────────────────────────── */
     ESP_LOGI(TAG, "Install panel IO");
-   esp_lcd_panel_io_spi_config_t io_config = {
+    esp_lcd_panel_io_spi_config_t io_config = {
         .dc_gpio_num       = PIN_NUM_DC,
         .cs_gpio_num       = PIN_NUM_CS,
         .pclk_hz           = LCD_PIXEL_CLOCK_HZ,
-        .lcd_cmd_bits      = 16,   // was 8
-        .lcd_param_bits    = 16,   // was 8
+        .lcd_cmd_bits      = 8,   // Reverted to 8 (16-bit was incorrect)
+        .lcd_param_bits    = 8,   // Reverted to 8
         .spi_mode          = 0,
         .trans_queue_depth = 10,
-        //.on_color_trans_done = ili9486_color_trans_done_cb
     };
     ESP_RETURN_ON_ERROR(
         esp_lcd_new_panel_io_spi((esp_lcd_spi_bus_handle_t)LCD_HOST,
@@ -89,6 +84,7 @@ esp_err_t ili9486_display_init(void)
     esp_lcd_panel_dev_config_t panel_config = {
         .reset_gpio_num  = PIN_NUM_RST,
         .bits_per_pixel  = 16,
+        .rgb_endian      = LCD_RGB_ENDIAN_RGB, // Fix color order
     };
     ESP_RETURN_ON_ERROR(
         esp_lcd_new_panel_ili9486(s_io_handle, &panel_config, &s_panel),
@@ -96,15 +92,18 @@ esp_err_t ili9486_display_init(void)
 
     ESP_ERROR_CHECK(esp_lcd_panel_reset(s_panel));
     ESP_ERROR_CHECK(esp_lcd_panel_init(s_panel));
+    
+    // Force BGR bit in MADCTL (bit 3) for correct color rendering
+    esp_lcd_panel_io_tx_param(s_io_handle, 0x36, (uint8_t[]){ 0x48 }, 1);
+
     ESP_ERROR_CHECK(esp_lcd_panel_disp_on_off(s_panel, true));
 
     /* Backlight ON */
     gpio_set_level(PIN_NUM_BK_LIGHT, 1);
+
+    ESP_LOGI(TAG, "ILI9486 basic initialization complete");
     return ESP_OK;
-    /* ── LVGL ──────────────────────────────────────────────────────────────── */
 }
-
-
 
 esp_lcd_panel_handle_t ili9486_display_get_panel(void)
 {
@@ -113,4 +112,13 @@ esp_lcd_panel_handle_t ili9486_display_get_panel(void)
         return NULL;
     }
     return s_panel;
+}
+
+esp_lcd_panel_io_handle_t ili9486_display_get_panel_io(void)
+{
+    if(!s_io_handle) {
+        ESP_LOGE(TAG, "Panel IO not initialized");
+        return NULL;
+    }
+    return s_io_handle;
 }
