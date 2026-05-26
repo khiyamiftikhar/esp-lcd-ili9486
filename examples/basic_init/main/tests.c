@@ -21,7 +21,7 @@
 
 // ── RGB565 helpers ────────────────────────────────────────────────────────────
 // NOTE: ILI9486 is BGR so colours may appear swapped — that's useful info!
-#define RGB565(r,g,b)  ((uint16_t)((((r)&0xF8)<<8)|(((g)&0xFC)<<3)|((b)>>3)))
+#define RGB565(r,g,b) __builtin_bswap16((uint16_t)((((r)&0xF8)<<8)|(((g)&0xFC)<<3)|((b)>>3)))
 #define WHITE   0xFFFF
 #define BLACK   0x0000
 #define RED     RGB565(255,0,0)
@@ -45,6 +45,9 @@ static void fill_rect(esp_lcd_panel_handle_t panel,
     for (int y = y0; y <= y1; y++) {
         esp_lcd_panel_draw_bitmap(panel, x0, y, x1 + 1, y + 1, row_buf);
     }
+
+    vTaskDelay(pdMS_TO_TICKS(10)); // <--- ADD THIS: Wait 1ms to let the last DMA line finish
+
 }
 
 // ── Fill entire screen ────────────────────────────────────────────────────────
