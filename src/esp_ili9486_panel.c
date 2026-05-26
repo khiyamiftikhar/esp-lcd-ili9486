@@ -36,22 +36,6 @@ typedef struct {
     bool invert_color;
 } ili9486_panel_t;
 
-#define LCD_H_RES 320
-#define CONV_BUF_PIXELS (LCD_H_RES * 80)
-static uint8_t s_conv_buf[CONV_BUF_PIXELS * 3];
-
-static void rgb565_to_rgb666(const uint16_t *src, uint8_t *dst, size_t pixels)
-{
-
-    
-    for (size_t i = 0; i < pixels; i++) {
-        uint16_t p = src[i];
-        dst[3*i + 0] = ((p >> 11) & 0x1F) << 3;
-        dst[3*i + 1] = ((p >> 5)  & 0x3F) << 2;
-        dst[3*i + 2] = ( p        & 0x1F) << 3;
-    }
-}
-
 static esp_err_t panel_ili9486_del(esp_lcd_panel_t *panel);
 static esp_err_t panel_ili9486_reset(esp_lcd_panel_t *panel);
 static esp_err_t panel_ili9486_init(esp_lcd_panel_t *panel);
@@ -71,15 +55,6 @@ static esp_err_t ili9486_send(esp_lcd_panel_io_handle_t io,
     return esp_lcd_panel_io_tx_param(io, cmd, data, len);
 }
 
-// Send MADCTL specifically.
-//
-// With lcd_param_bits=16, tx_param() packs parameters as 16-bit words.
-// A single-byte parameter (1 byte < 16 bits) gets dropped or mis-padded,
-// so the MADCTL value never reaches the display.
-//
-// Fix: send the command via tx_param (cmd-only, no data), then send the
-// 1-byte parameter via tx_color which bypasses the 16-bit packing and
-// sends raw bytes — exactly as CASET/RASET coordinate data is handled.
 static esp_err_t ili9486_send_madctl(esp_lcd_panel_io_handle_t io, uint8_t madctl)
 {
     esp_err_t ret = esp_lcd_panel_io_tx_param(io, ILI9486_CMD_MADCTL, NULL, 0);
@@ -111,12 +86,10 @@ static void ili9486_send_init_sequence(esp_lcd_panel_io_handle_t io, uint8_t mad
         (uint8_t[]){0x0F,0x32,0x2E,0x0B,0x0D,0x05,0x47,0x75,
                     0x37,0x06,0x10,0x03,0x24,0x20,0x00}, 15);
 
-    //ili9486_send(io, ILI9486_CMD_COLMOD, (uint8_t[]){0x66}, 1);
+    /* RGB565 — 16-bit pixels, no conversion buffer needed */
     esp_lcd_panel_io_tx_param(io, ILI9486_CMD_COLMOD, NULL, 0);
-    esp_lcd_panel_io_tx_color(io, -1, (uint8_t[]){0x66}, 1);
+    esp_lcd_panel_io_tx_color(io, -1, (uint8_t[]){0x55}, 1);
 
-    // Send MADCTL via tx_color to bypass lcd_param_bits=16 word-packing,
-    // which drops single-byte parameters.
     ili9486_send_madctl(io, madctl);
 
     ili9486_send(io, ILI9486_CMD_DISPON, NULL, 0);
@@ -134,9 +107,6 @@ esp_err_t esp_lcd_new_panel_ili9486(esp_lcd_panel_io_handle_t io,
 
     ili->io             = io;
     ili->reset_gpio_num = cfg->reset_gpio_num;
-    // 0x48 = MX=1, BGR=1.
-    // BGR=1 is required because this panel has Red and Blue physically
-    // swapped on the flex cable. Without it, R↔B are swapped.
     ili->madctl         = 0x08;
     ili->invert_color   = false;
 
@@ -188,7 +158,6 @@ static esp_err_t panel_ili9486_init(esp_lcd_panel_t *panel)
     return ESP_OK;
 }
 
-static int flush_count = 0;
 static esp_err_t panel_ili9486_draw_bitmap(
     esp_lcd_panel_t *panel,
     int x_start, int y_start,
@@ -222,29 +191,16 @@ static esp_err_t panel_ili9486_draw_bitmap(
     esp_lcd_panel_io_tx_param(io, ILI9486_CMD_RASET, NULL, 0);
     esp_lcd_panel_io_tx_color(io, -1, raset, 8);
 
-    size_t pixels = (x_end - x_start) * (y_end - y_start);
-
-    if (pixels > CONV_BUF_PIXELS) {
-        ESP_LOGE(TAG, "Flush too large! pixels=%u max=%u",
-                 (unsigned)pixels, (unsigned)CONV_BUF_PIXELS);
-        return ESP_ERR_INVALID_SIZE;
-    }
-
-    rgb565_to_rgb666((const uint16_t *)color_data, s_conv_buf, pixels);
-
-
-
-    // Log area info
+    size_t len = (x_end - x_start) * (y_end - y_start) * 2;
 
     esp_lcd_panel_io_tx_param(io, ILI9486_CMD_RAMWR, NULL, 0);
-    return esp_lcd_panel_io_tx_color(io, -1, s_conv_buf, pixels * 3);
+    return esp_lcd_panel_io_tx_color(io, -1, color_data, len);
 }
 
 static esp_err_t panel_ili9486_invert_color(esp_lcd_panel_t *panel, bool invert)
 {
     ili9486_panel_t *ili = __containerof(panel, ili9486_panel_t, base);
     int cmd = invert ? ILI9486_CMD_INVON : ILI9486_CMD_INVOFF;
-    // Use tx_color for the command byte too, same reason as MADCTL
     return esp_lcd_panel_io_tx_param(ili->io, cmd, NULL, 0);
 }
 
@@ -253,7 +209,6 @@ static esp_err_t panel_ili9486_mirror(esp_lcd_panel_t *panel, bool mx, bool my)
     ili9486_panel_t *ili = __containerof(panel, ili9486_panel_t, base);
     if (mx) ili->madctl |=  0x40; else ili->madctl &= ~0x40;
     if (my) ili->madctl |=  0x80; else ili->madctl &= ~0x80;
-    // Use ili9486_send_madctl to bypass lcd_param_bits=16 word-packing
     return ili9486_send_madctl(ili->io, ili->madctl);
 }
 
@@ -261,7 +216,6 @@ static esp_err_t panel_ili9486_swap_xy(esp_lcd_panel_t *panel, bool swap)
 {
     ili9486_panel_t *ili = __containerof(panel, ili9486_panel_t, base);
     if (swap) ili->madctl |=  0x20; else ili->madctl &= ~0x20;
-    // Use ili9486_send_madctl to bypass lcd_param_bits=16 word-packing
     return ili9486_send_madctl(ili->io, ili->madctl);
 }
 
