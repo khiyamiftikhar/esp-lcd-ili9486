@@ -172,27 +172,31 @@ static esp_err_t panel_ili9486_draw_bitmap(
     y_start += ili->y_gap;
     y_end   += ili->y_gap;
 
+    // ILI9486 uses 32-bit (4-byte) coordinates, so each value needs 2 bytes
+    // sent as 00 HH 00 LL format — total 8 bytes per command
     uint8_t caset[] = {
-        0x00, (uint8_t)((x_start >> 8) & 0xFF),
-        0x00, (uint8_t)(x_start & 0xFF),
-        0x00, (uint8_t)(((x_end - 1) >> 8) & 0xFF),
-        0x00, (uint8_t)((x_end - 1) & 0xFF),
+        0x00, (uint8_t)(x_start >> 8), 0x00, (uint8_t)(x_start & 0xFF),
+        0x00, (uint8_t)((x_end - 1) >> 8), 0x00, (uint8_t)((x_end - 1) & 0xFF),
     };
     uint8_t raset[] = {
-        0x00, (uint8_t)((y_start >> 8) & 0xFF),
-        0x00, (uint8_t)(y_start & 0xFF),
-        0x00, (uint8_t)(((y_end - 1) >> 8) & 0xFF),
-        0x00, (uint8_t)((y_end - 1) & 0xFF),
+        0x00, (uint8_t)(y_start >> 8), 0x00, (uint8_t)(y_start & 0xFF),
+        0x00, (uint8_t)((y_end - 1) >> 8), 0x00, (uint8_t)((y_end - 1) & 0xFF),
     };
 
-    esp_lcd_panel_io_tx_param(io, ILI9486_CMD_CASET, NULL, 0);
-    esp_lcd_panel_io_tx_color(io, -1, caset, 8);
+    // CASET (0x2A): combined send works — command + data in one transaction
+    // CS stays low throughout: [0x2A | 00 HH 00 LL 00 HH 00 LL]
+    esp_lcd_panel_io_tx_param(io, ILI9486_CMD_CASET, caset, 8);
 
+    // RASET (0x2B): this LCD requires split send — command and data separately
+    // CS pulses low twice: [0x2B] then [00 HH 00 LL 00 HH 00 LL]
+    // Both calls are blocking (tx_param) so bus is fully free before RAMWR
     esp_lcd_panel_io_tx_param(io, ILI9486_CMD_RASET, NULL, 0);
-    esp_lcd_panel_io_tx_color(io, -1, raset, 8);
+    esp_lcd_panel_io_tx_param(io, -1, raset, 8);
 
+    // RAMWR (0x2C): also requires split send on this LCD
+    // Command is blocking. Pixel data is async DMA — on_color_trans_done
+    // CB fires when complete. Nothing must touch the SPI bus until then.
     size_t len = (x_end - x_start) * (y_end - y_start) * 2;
-
     esp_lcd_panel_io_tx_param(io, ILI9486_CMD_RAMWR, NULL, 0);
     return esp_lcd_panel_io_tx_color(io, -1, color_data, len);
 }
