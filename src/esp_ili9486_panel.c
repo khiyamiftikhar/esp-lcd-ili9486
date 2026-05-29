@@ -199,7 +199,7 @@ static esp_err_t panel_ili9486_draw_bitmap(
     // RAMWR (0x2C): also requires split send on this LCD
     // Command is blocking. Pixel data is async DMA — on_color_trans_done
     // CB fires when complete. Nothing must touch the SPI bus until then.
-    ESP_LOGI(TAG, "Drawing bitmap: (%d, %d) - (%d, %d), size: %d bytes",
+    ESP_LOGD(TAG, "Drawing bitmap: (%d, %d) - (%d, %d), size: %d bytes",
              x_start, y_start, x_end, y_end, (x_end - x_start) * (y_end - y_start) * 2);
     size_t len = (x_end - x_start) * (y_end - y_start) * 2;
     esp_lcd_panel_io_tx_param(io, ILI9486_CMD_RAMWR, NULL, 0);
