@@ -88,7 +88,9 @@ static void ili9486_send_init_sequence(esp_lcd_panel_io_handle_t io, uint8_t mad
 
     /* RGB565 — 16-bit pixels, no conversion buffer needed */
     esp_lcd_panel_io_tx_param(io, ILI9486_CMD_COLMOD, NULL, 0);
-    esp_lcd_panel_io_tx_color(io, -1, (uint8_t[]){0x55}, 1);
+    //esp_lcd_panel_io_tx_color(io, -1, (uint8_t[]){0x55}, 1);
+    esp_lcd_panel_io_tx_param(io, -1, (uint8_t[]){0x55}, 1);
+    //ili9486_send(io, ILI9486_CMD_COLMOD, (uint8_t[]){0x55}, 1);
 
     ili9486_send_madctl(io, madctl);
 
@@ -183,9 +185,10 @@ static esp_err_t panel_ili9486_draw_bitmap(
         0x00, (uint8_t)((y_end - 1) >> 8), 0x00, (uint8_t)((y_end - 1) & 0xFF),
     };
 
-    // CASET (0x2A): combined send works — command + data in one transaction
-    // CS stays low throughout: [0x2A | 00 HH 00 LL 00 HH 00 LL]
-    esp_lcd_panel_io_tx_param(io, ILI9486_CMD_CASET, caset, 8);
+    // CASET (0x2A): combined send doesnt works —so  split command + data in 2 transactions
+    // CS stays low for each separately: 0x2A and then 00 HH 00 LL 00 HH 00 LL]
+    esp_lcd_panel_io_tx_param(io, ILI9486_CMD_CASET, NULL,0);
+    esp_lcd_panel_io_tx_param(io, -1, caset, 8);
 
     // RASET (0x2B): this LCD requires split send — command and data separately
     // CS pulses low twice: [0x2B] then [00 HH 00 LL 00 HH 00 LL]
@@ -196,6 +199,8 @@ static esp_err_t panel_ili9486_draw_bitmap(
     // RAMWR (0x2C): also requires split send on this LCD
     // Command is blocking. Pixel data is async DMA — on_color_trans_done
     // CB fires when complete. Nothing must touch the SPI bus until then.
+    ESP_LOGI(TAG, "Drawing bitmap: (%d, %d) - (%d, %d), size: %d bytes",
+             x_start, y_start, x_end, y_end, (x_end - x_start) * (y_end - y_start) * 2);
     size_t len = (x_end - x_start) * (y_end - y_start) * 2;
     esp_lcd_panel_io_tx_param(io, ILI9486_CMD_RAMWR, NULL, 0);
     return esp_lcd_panel_io_tx_color(io, -1, color_data, len);
