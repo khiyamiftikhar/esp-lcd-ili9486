@@ -90,7 +90,7 @@ input prefetch buffer.
  
 ### `examples/https`
 Fetches the classic [Lenna](https://i.gzn.jp/img/2009/06/18/lenna/000.jpg)
-512×512 test image over HTTPS and displays it on the panel with automatic scale
+lenna test image over HTTPS and displays it on the panel with automatic scale
 selection and pan control. Demonstrates TLS, scale/pan,
 and correct resource lifetime across async decode callbacks.
  
