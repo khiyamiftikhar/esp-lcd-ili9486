@@ -41,14 +41,14 @@ This component integrates with Espressif's `esp_lcd` abstraction layer and suppo
 ### Using ESP-IDF Component Manager (Recommended)
 
 ```bash
-idf.py add-dependency "khiyamiftikhar/esp-lcd-ili9486^1.0.5"
+idf.py add-dependency "khiyamiftikhar/esp-lcd-ili9486^1.1.0"
 ```
 
 Or in your project's `idf_component.yml`:
 
 ```yaml
 dependencies:
-  khiyamiftikhar/esp-lcd-ili9486: "^1.0.5"
+  khiyamiftikhar/esp-lcd-ili9486: "^1.1.0"
 ```
 
 Then configure via:
