@@ -1,6 +1,38 @@
 # Changelog
+ 
+## [1.1.0] - 2026-05-30
+ 
+### Added
+- `examples/ipcam` — streams a live JPEG from an IP camera over HTTP and renders
+  it to the panel in 480×320 landscape mode, row by row, with no framebuffer.
+  Demonstrates SPI panel init, DMA-backed row writes, FreeRTOS async decode, and
+  HTTP streaming with an input prefetch buffer.
+- `examples/https` — fetches the classic Lenna 512×512 test image over HTTPS and
+  displays it with automatic scale selection and pan control. Demonstrates TLS,
+  JPEG scale/pan, and correct resource lifetime across async decode callbacks.
+### Changed
+- **Pixel format switched from RGB666 to RGB565.** COLMOD is now `0x55` (16-bit)
+  instead of `0x66` (18-bit). The RGB565→RGB666 conversion buffer and
+  `rgb565_to_rgb666()` function have been removed. Pixel data is sent directly to
+  the panel, halving the per-frame memory and CPU overhead.
+- **CASET / RASET / RAMWR now use split transactions.** Each command is sent via
+  `tx_param` (command only), followed by a separate `tx_param` for the coordinate
+  data, then `tx_color` for pixel data. The previous mixed `tx_param` + `tx_color`
+  approach was unreliable on this panel.
+- **`trans_queue_depth` reduced from 10 to 1** in the panel IO config. Queuing
+  multiple transactions ahead caused pixel data to be sent before CASET/RASET
+  completed, corrupting the framebuffer address window.
+- **Mirror now set via `esp_lcd_panel_mirror(true, false)`** instead of a raw
+  MADCTL `0x48` write in the example init code. The driver's init sequence handles
+  the BGR bit correctly; the manual override is no longer needed.
+### Removed
+- `rgb565_to_rgb666()` conversion function and its 25 600-byte static conversion
+  buffer (`s_conv_buf`).
+- `flush_count` debug variable from `panel_ili9486_draw_bitmap`.
+- Manual `esp_lcd_panel_io_tx_param(s_io_handle, 0x36, ...)` MADCTL override from
+  `examples/basic_init`.
+---
 
-All notable changes to this project will be documented in this file.
 
 ## [1.0.4] - 2026-05-23
 
