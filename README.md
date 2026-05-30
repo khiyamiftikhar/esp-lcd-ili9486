@@ -11,23 +11,21 @@ This component integrates with Espressif's `esp_lcd` abstraction layer and suppo
 * Raw `esp_lcd` usage
 * LVGL integration via `lvgl_port`
 
-The driver handles the SPI-specific requirements of the ILI9486, including CASET/RASET coordinate padding and RGB565 → RGB666 pixel conversion.
-
 ---
 
-# Features
+## Features
 
 * Compatible with the `esp_lcd` panel API
-* RGB565 → RGB666 conversion (required for SPI mode)
-* Proper coordinate window padding for CASET/RASET
+* Native RGB565 pixel format — no conversion overhead
+* Proper CASET/RASET coordinate window handling for SPI mode
 * LVGL v9 compatible
 * Configurable via Kconfig
 * Includes working raw and LVGL examples
 * Includes Unity hardware verification tests
 
-
 ---
-# Chip Support
+
+## Chip Support
 
 | Chip     | Status |
 |----------|--------|
@@ -38,19 +36,19 @@ The driver handles the SPI-specific requirements of the ILI9486, including CASET
 
 ---
 
-# Installation
+## Installation
 
-## Using ESP-IDF Component Manager (Recommended)
+### Using ESP-IDF Component Manager (Recommended)
 
 ```bash
-idf.py add-dependency "khiyamiftikhar/esp-lcd-ili9486^1.0.4"
+idf.py add-dependency "khiyamiftikhar/esp-lcd-ili9486^1.0.5"
 ```
 
 Or in your project's `idf_component.yml`:
 
 ```yaml
 dependencies:
-  khiyamiftikhar/esp-lcd-ili9486: "^1.0.4"
+  khiyamiftikhar/esp-lcd-ili9486: "^1.0.5"
 ```
 
 Then configure via:
@@ -62,48 +60,50 @@ Component config → ILI9486 Panel Driver
 
 ---
 
-# Usage
+## Usage
 
-This component implements the standard `esp_lcd` panel interface.
+After initializing the SPI bus and creating panel IO with:
 
-After:
+```c
+.lcd_cmd_bits   = 8
+.lcd_param_bits = 8
+```
 
-1. Initializing the SPI bus
-2. Creating panel IO with:
-
-   ```c
-   .lcd_cmd_bits   = 8
-   .lcd_param_bits = 8
-   ```
-3. Creating the panel via `esp_lcd_new_panel_ili9486()`
-
-You can use:
+Create the panel via `esp_lcd_new_panel_ili9486()` and use the standard `esp_lcd` API:
 
 * `esp_lcd_panel_draw_bitmap()`
 * `esp_lcd_panel_mirror()`
 * `esp_lcd_panel_swap_xy()`
 * `esp_lcd_panel_disp_on_off()`
 
-For complete working initialization flows, see the examples below.
+For complete initialization flows, see the examples below.
 
 ---
 
-# Examples
-
-Fully working examples are provided:
-
-* `examples/basic_init` – Raw `esp_lcd` usage (no LVGL)
-* `examples/lvgl_demo` – LVGL integration with full colour verification sequence (primary colour flashes, rainbow stripes, colour-cycling progress bar)
+## Examples
+ 
+### `examples/ipcam`
+Streams a live JPEG from an IP camera URL over HTTP and renders it to the panel
+in 480×320 landscape mode, row by row. No framebuffer. Demonstrates SPI panel
+init, DMA-backed row writes, FreeRTOS async decode, and HTTP streaming with an
+input prefetch buffer.
+ 
+### `examples/https`
+Fetches the classic [Lenna](https://i.gzn.jp/img/2009/06/18/lenna/000.jpg)
+512×512 test image over HTTPS and displays it on the panel with automatic scale
+selection and pan control. Demonstrates TLS, scale/pan,
+and correct resource lifetime across async decode callbacks.
+ 
+### `examples/basic_init` — Raw `esp_lcd` usage (no LVGL)
+### `examples/lvgl_demo` — LVGL integration with full colour verification sequence
 
 Each example is self-contained and ready to build.
 
 ---
 
-# Important Hardware Notes
+## Important Hardware Notes
 
-The ILI9486 SPI interface has several non-obvious requirements:
-
-## 1️⃣ 8-bit Command and Parameter Mode
+### 1️⃣ 8-bit Command and Parameter Mode
 
 Commands and parameters must be sent as 8-bit values:
 
@@ -112,38 +112,39 @@ Commands and parameters must be sent as 8-bit values:
 .lcd_param_bits = 8
 ```
 
-The driver sends coordinate and pixel data via `tx_color()` to bypass parameter packing, so `lcd_param_bits = 8` is correct. Using `lcd_param_bits = 16` causes single-byte parameters (such as MADCTL and COLMOD) to be word-padded and silently ignored by the display.
+Using `lcd_param_bits = 16` causes single-byte parameters to be word-padded and silently ignored by the display.
 
 ---
 
-## 2️⃣ CASET / RASET Window Padding
+### 2️⃣ CASET / RASET Window Handling
 
-When using `esp_lcd_panel_io_tx_color()`, coordinate parameters must be manually padded to 16-bit.
-Failure results in drawing repeatedly to the same row.
-
----
-
-## 3️⃣ RGB666 Required Over SPI
-
-Although `COLMOD = 0x55` (RGB565) may appear accepted, pixel data must be transmitted as RGB666 (18-bit) over SPI.
-
-This driver converts RGB565 → RGB666 internally.
+The ILI9486 requires coordinate window parameters to be sent correctly over SPI. This driver handles that internally — no special treatment needed from the application side.
 
 ---
 
-## 4️⃣ LVGL Orientation Handling
+### 3️⃣ Native RGB565 over SPI
 
-When using `lvgl_port`, do not manually call `esp_lcd_panel_mirror()` after initialization.
+This driver operates in native RGB565 mode (`COLMOD = 0x55`). Pixel data is sent as 16-bit RGB565 directly with no conversion. Pass `bits_per_pixel = 16` in the panel config:
 
-Rotation must be controlled via `lvgl_port_display_cfg_t.rotation`.
+```c
+esp_lcd_panel_dev_config_t panel_config = {
+    .reset_gpio_num = PIN_NUM_RST,
+    .bits_per_pixel = 16,
+    .rgb_ele_order  = LCD_RGB_ELEMENT_ORDER_BGR,
+};
+```
 
 ---
 
-## 5️⃣ Async Transfer Callback
+### 4️⃣ LVGL Orientation Handling
 
-If `.on_color_trans_done` is enabled without proper synchronization, `draw_bitmap()` may block indefinitely.
+When using `lvgl_port`, do not manually call `esp_lcd_panel_mirror()` after initialization. Rotation must be controlled via `lvgl_port_display_cfg_t.rotation`.
 
-For raw usage, keep:
+---
+
+### 5️⃣ Async Transfer Callback
+
+If `.on_color_trans_done` is enabled without proper synchronization, `draw_bitmap()` may block indefinitely. For raw usage without a transaction-done callback, set:
 
 ```c
 .on_color_trans_done = NULL
@@ -151,7 +152,7 @@ For raw usage, keep:
 
 ---
 
-# Configuration (Kconfig)
+## Configuration (Kconfig)
 
 Available under:
 
@@ -159,47 +160,37 @@ Available under:
 Component config → ILI9486 Panel Driver
 ```
 
-Configurable parameters include:
-
-* SPI host
-* GPIO pins
-* Pixel clock
-* Resolution
-* Backlight polarity
+Configurable parameters include SPI host, GPIO pins, pixel clock, resolution, and backlight polarity.
 
 ---
 
-# Running Tests
+## Running Tests
 
 ```bash
 cd test_app
 idf.py build flash monitor
 ```
 
-Unity tests verify:
-
-* Pixel correctness
-* Window addressing
-* Orientation
-* Full-screen rendering
+Unity tests verify pixel correctness, window addressing, orientation, and full-screen rendering.
 
 ---
 
-# Known Limitations
+## Known Limitations
 
 * SPI clock above 10 MHz not fully validated
 * ILI9488 not tested
 * Some module variants may require init sequence adjustments
 
 ---
-# Example Connection
- The diagram below shows connections as in sdkconfig.defaults for 3.5 inch RPI LCD
- 
- # Example Connections
+
+## Example Connection
+
+The diagram below shows connections as in `sdkconfig.defaults` for the 3.5 inch RPI LCD.
 
 ![3.5 inch RPI](https://raw.githubusercontent.com/khiyamiftikhar/esp-lcd-ili9486/v1.0.2/docs/RPI_3_5.jpg)
 
 ---
-# License
+
+## License
 
 MIT License — see LICENSE file.
