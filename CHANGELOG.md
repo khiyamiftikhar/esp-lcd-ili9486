@@ -1,5 +1,20 @@
 # Changelog
  
+## [1.2.0] - 2026-11-22
+ 
+### Added
+- **ESP-IDF v6.x support** (built and checked against v6.1.1). The same sources
+  still build on v5.5.
+### Changed
+- Component no longer depends on the legacy `driver` component, which IDF v6
+  deprecates. It now `REQUIRES esp_lcd` and `PRIV_REQUIRES esp_driver_gpio`.
+- `basic_init` and `lvgl_demo` examples: depend on `esp_driver_spi` /
+  `esp_driver_gpio` in place of `driver`, and set `rgb_ele_order` in place of
+  `rgb_endian` / `LCD_RGB_ENDIAN_RGB`, which IDF v6 removed.
+### Fixed
+- `test_app/CMakeLists.txt`: `EXTRA_COMPONENT_DIRS` paths were missing a `/`,
+  so the driver and test components could not be found.
+ 
 ## [1.1.0] - 2026-05-30
  
 ### Added

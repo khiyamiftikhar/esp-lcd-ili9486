@@ -1,10 +1,10 @@
 # esp-lcd-ili9486
 
-![ESP-IDF](https://img.shields.io/badge/ESP--IDF-v5.x-blue)
+![ESP-IDF](https://img.shields.io/badge/ESP--IDF-v5.5%20%7C%20v6.x-blue)
 ![Espressif Component Registry](https://img.shields.io/badge/Espressif-Component%20Registry-orange)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-ESP-IDF v5.x compatible **`esp_lcd` panel driver** for the **ILI9486 320×480 SPI TFT display**.
+ESP-IDF v5.5 / v6.x compatible **`esp_lcd` panel driver** for the **ILI9486 320×480 SPI TFT display**.
 
 This component integrates with Espressif's `esp_lcd` abstraction layer and supports:
 
@@ -41,7 +41,7 @@ This component integrates with Espressif's `esp_lcd` abstraction layer and suppo
 ### Using ESP-IDF Component Manager (Recommended)
 
 ```bash
-idf.py add-dependency "khiyamiftikhar/esp-lcd-ili9486^1.1.0"
+idf.py add-dependency "khiyamiftikhar/esp-lcd-ili9486^1.2.0"
 ```
 
 Or in your project's `idf_component.yml`:
