@@ -41,7 +41,7 @@ This component integrates with Espressif's `esp_lcd` abstraction layer and suppo
 ### Using ESP-IDF Component Manager (Recommended)
 
 ```bash
-idf.py add-dependency "khiyamiftikhar/esp-lcd-ili9486^1.2.0"
+idf.py add-dependency "khiyamiftikhar/esp-lcd-ili9486^1.3.0"
 ```
 
 Or in your project's `idf_component.yml`:

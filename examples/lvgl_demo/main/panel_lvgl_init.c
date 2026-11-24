@@ -140,7 +140,7 @@ esp_err_t ili9486_display_init(lv_display_t** handle)
 #endif
         .rotation = {
             .swap_xy  = false,
-            .mirror_x = true,
+            .mirror_x = false,
             .mirror_y = false,
         },
         .flags = {

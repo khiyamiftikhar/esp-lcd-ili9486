@@ -49,10 +49,31 @@ static esp_err_t panel_ili9486_swap_xy(esp_lcd_panel_t *panel, bool swap);
 static esp_err_t panel_ili9486_set_gap(esp_lcd_panel_t *panel, int x_gap, int y_gap);
 static esp_err_t panel_ili9486_disp_on_off(esp_lcd_panel_t *panel, bool on);
 
+/*
+ * Send a command and its parameters.
+ *
+ * This panel needs the command and its parameters in separate transactions,
+ * and each parameter byte sent as a 16-bit word (0x00, value), the same format
+ * CASET/RASET use. Sending them combined or as plain bytes means the panel
+ * never receives the init settings (power, VCOM, gamma, display function) and
+ * runs on its factory defaults, which differ between panels.
+ */
 static esp_err_t ili9486_send(esp_lcd_panel_io_handle_t io,
                                int cmd, const uint8_t *data, size_t len)
 {
-    return esp_lcd_panel_io_tx_param(io, cmd, data, len);
+    esp_err_t ret = esp_lcd_panel_io_tx_param(io, cmd, NULL, 0);
+    if (ret != ESP_OK || len == 0) {
+        return ret;
+    }
+    uint8_t buf[32];
+    if (len > sizeof(buf) / 2) {
+        return ESP_ERR_INVALID_SIZE;
+    }
+    for (size_t i = 0; i < len; i++) {
+        buf[2 * i]     = 0x00;
+        buf[2 * i + 1] = data[i];
+    }
+    return esp_lcd_panel_io_tx_param(io, -1, buf, len * 2);
 }
 
 static esp_err_t ili9486_send_madctl(esp_lcd_panel_io_handle_t io, uint8_t madctl)

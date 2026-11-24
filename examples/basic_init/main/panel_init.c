@@ -89,7 +89,6 @@ esp_err_t ili9486_display_init(void)
     ESP_ERROR_CHECK(esp_lcd_panel_reset(s_panel));
     ESP_ERROR_CHECK(esp_lcd_panel_init(s_panel));
     /* MADCTL removed — driver init sequence handles it correctly */
-    ESP_ERROR_CHECK(esp_lcd_panel_mirror(s_panel, true, false));
 
     ESP_ERROR_CHECK(esp_lcd_panel_disp_on_off(s_panel, true));
     gpio_set_level(PIN_NUM_BK_LIGHT, 1);

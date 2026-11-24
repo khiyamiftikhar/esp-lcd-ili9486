@@ -1,5 +1,24 @@
 # Changelog
  
+## [1.3.0] - 2026-11-24
+ 
+### Fixed
+- **Init settings now actually reach the panel.** `ili9486_send()` sent each
+  command and its parameters combined, as plain bytes. This panel needs the
+  command and parameters in separate transactions, with every parameter sent
+  as a 16-bit word (`0x00`, value), the same format CASET/RASET already used.
+  Before, the power, VCOM, gamma and display-function settings never arrived
+  and each panel ran on its factory defaults. On panels with poor defaults
+  this gave washed-out colours: dark and mid levels too bright, greyish
+  blacks, tinted white.
+- **Horizontal mirror root cause.** Display Function Control (`0xB6`, SS bit)
+  now takes effect, so the image is no longer mirrored by default.
+### Changed
+- **Breaking for apps with the old mirror workaround:** remove
+  `esp_lcd_panel_mirror(panel, true, false)` / `rotation.mirror_x = true`.
+  Keeping it now mirrors the image. Removed from `basic_init`, `https` and
+  `lvgl_demo`.
+ 
 ## [1.2.0] - 2026-11-22
  
 ### Added
