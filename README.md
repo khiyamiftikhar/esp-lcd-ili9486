@@ -32,7 +32,7 @@ This component integrates with Espressif's `esp_lcd` abstraction layer and suppo
 | ESP32    | ✅ Tested |
 | ESP32-S2 | ⚠️ Expected to work |
 | ESP32-S3 | ⚠️ Expected to work |
-| ESP32-C3 | ⚠️ Expected to work |
+| ESP32-C3 | ✅ Tested |
 
 ---
 
@@ -41,15 +41,22 @@ This component integrates with Espressif's `esp_lcd` abstraction layer and suppo
 ### Using ESP-IDF Component Manager (Recommended)
 
 ```bash
-idf.py add-dependency "khiyamiftikhar/esp-lcd-ili9486^1.3.0"
+idf.py add-dependency "khiyamiftikhar/esp-lcd-ili9486^2.0.0"
 ```
 
 Or in your project's `idf_component.yml`:
 
 ```yaml
 dependencies:
-  khiyamiftikhar/esp-lcd-ili9486: "^1.1.0"
+  khiyamiftikhar/esp-lcd-ili9486: "^2.0.0"
 ```
+
+### Upgrading from 1.x
+
+Version 2.0.0 fixes the init sequence so the panel's settings are actually
+applied. As a result, the image is no longer mirrored, so **remove**
+`esp_lcd_panel_mirror(panel, true, false)` or LVGL `rotation.mirror_x = true`
+if you added it as a workaround. See [CHANGELOG.md](CHANGELOG.md).
 
 Then configure via:
 
@@ -105,14 +112,17 @@ Each example is self-contained and ready to build.
 
 ### 1️⃣ 8-bit Command and Parameter Mode
 
-Commands and parameters must be sent as 8-bit values:
+Configure the panel IO with 8-bit commands and parameters:
 
 ```c
 .lcd_cmd_bits   = 8
 .lcd_param_bits = 8
 ```
 
-Using `lcd_param_bits = 16` causes single-byte parameters to be word-padded and silently ignored by the display.
+This panel expects each parameter as a 16-bit word (`0x00`, value), sent in a
+separate transaction from its command. The driver does that padding itself, so
+leave the IO config at 8 bits. Setting `lcd_param_bits = 16` makes ESP-IDF pad
+parameters a second time, and the panel ignores them.
 
 ---
 
@@ -130,15 +140,21 @@ This driver operates in native RGB565 mode (`COLMOD = 0x55`). Pixel data is sent
 esp_lcd_panel_dev_config_t panel_config = {
     .reset_gpio_num = PIN_NUM_RST,
     .bits_per_pixel = 16,
-    .rgb_ele_order  = LCD_RGB_ELEMENT_ORDER_BGR,
+    .rgb_ele_order  = LCD_RGB_ELEMENT_ORDER_RGB,
 };
 ```
+
+The driver sets the panel's BGR bit itself, so `rgb_ele_order` does not change
+the colours. The examples use `LCD_RGB_ELEMENT_ORDER_RGB`.
 
 ---
 
 ### 4️⃣ LVGL Orientation Handling
 
 When using `lvgl_port`, do not manually call `esp_lcd_panel_mirror()` after initialization. Rotation must be controlled via `lvgl_port_display_cfg_t.rotation`.
+
+The default orientation is correct as-is: use `mirror_x = false` and
+`mirror_y = false` for portrait.
 
 ---
 
