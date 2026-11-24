@@ -164,6 +164,33 @@ Configurable parameters include SPI host, GPIO pins, pixel clock, resolution, an
 
 ---
 
+## Building the Examples for Other Targets
+
+Each example's `sdkconfig.defaults` holds the ESP32 pins. A target-specific
+`sdkconfig.defaults.<target>` (for example `examples/lvgl_demo/sdkconfig.defaults.esp32c3`)
+overrides the pins for that chip. Separate build folders and sdkconfig files
+let you keep several targets side by side.
+
+**ESP32** (PowerShell)
+
+```
+$env:IDF_TARGET="esp32"
+idf.py -B build_esp32 -D SDKCONFIG=sdkconfig.esp32 -D SDKCONFIG_DEFAULTS="sdkconfig.defaults" -D IDF_TARGET=esp32 build
+```
+
+**ESP32-C3** (PowerShell)
+
+```
+$env:IDF_TARGET="esp32c3"
+idf.py -B build_esp32c3 -D SDKCONFIG=sdkconfig.esp32c3 -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.defaults.esp32c3" -D IDF_TARGET=esp32c3 build
+```
+
+Setting `SDKCONFIG_DEFAULTS` replaces the default list, so always include
+`sdkconfig.defaults` first. After changing a defaults file, delete the matching
+`sdkconfig.<target>` so it is regenerated.
+
+---
+
 ## Running Tests
 
 ```bash
