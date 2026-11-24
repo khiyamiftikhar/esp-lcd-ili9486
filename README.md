@@ -182,16 +182,30 @@ Configurable parameters include SPI host, GPIO pins, pixel clock, resolution, an
 
 ## Building the Examples for Other Targets
 
-Each example's `sdkconfig.defaults` holds the ESP32 pins. A target-specific
-`sdkconfig.defaults.<target>` (for example `examples/lvgl_demo/sdkconfig.defaults.esp32c3`)
-overrides the pins for that chip. Separate build folders and sdkconfig files
-let you keep several targets side by side.
+Every example has three defaults files:
+
+| File | Contents |
+|------|----------|
+| `sdkconfig.defaults` | Settings shared by all targets (resolution) |
+| `sdkconfig.defaults.esp32` | ESP32 pins and SPI clock |
+| `sdkconfig.defaults.esp32c3` | ESP32-C3 pins, SPI clock and USB console |
+
+The simplest way is to set the target and build. ESP-IDF loads
+`sdkconfig.defaults` plus the file for the current target automatically:
+
+```
+idf.py set-target esp32c3
+idf.py build
+```
+
+To keep several targets side by side, use a separate build folder and
+sdkconfig file per target:
 
 **ESP32** (PowerShell)
 
 ```
 $env:IDF_TARGET="esp32"
-idf.py -B build_esp32 -D SDKCONFIG=sdkconfig.esp32 -D SDKCONFIG_DEFAULTS="sdkconfig.defaults" -D IDF_TARGET=esp32 build
+idf.py -B build_esp32 -D SDKCONFIG=sdkconfig.esp32 -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.defaults.esp32" -D IDF_TARGET=esp32 build
 ```
 
 **ESP32-C3** (PowerShell)
@@ -201,8 +215,8 @@ $env:IDF_TARGET="esp32c3"
 idf.py -B build_esp32c3 -D SDKCONFIG=sdkconfig.esp32c3 -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.defaults.esp32c3" -D IDF_TARGET=esp32c3 build
 ```
 
-Setting `SDKCONFIG_DEFAULTS` replaces the default list, so always include
-`sdkconfig.defaults` first. After changing a defaults file, delete the matching
+Setting `SDKCONFIG_DEFAULTS` replaces the default list, so always list
+`sdkconfig.defaults` first, then the target file. After changing a defaults file, delete the matching
 `sdkconfig.<target>` so it is regenerated.
 
 ---
@@ -228,7 +242,7 @@ Unity tests verify pixel correctness, window addressing, orientation, and full-s
 
 ## Example Connection
 
-The diagram below shows connections as in `sdkconfig.defaults` for the 3.5 inch RPI LCD.
+The diagram below shows the ESP32 connections from `sdkconfig.defaults.esp32` for the 3.5 inch RPI LCD.
 
 ![3.5 inch RPI](https://raw.githubusercontent.com/khiyamiftikhar/esp-lcd-ili9486/v1.0.2/docs/RPI_3_5.jpg)
 

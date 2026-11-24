@@ -15,8 +15,13 @@ ESP32-C3 with ESP-IDF v6.0.3; builds on v5.5.2 and v6.1.1.
 ### Added
 
 - **ESP-IDF v6.x support.**
-- `examples/lvgl_demo/sdkconfig.defaults.esp32c3` with a tested ESP32-C3 pin
-  set, and README instructions for building the examples per target.
+- Per-target defaults in every example: `sdkconfig.defaults` holds shared
+  settings, `sdkconfig.defaults.esp32` and `sdkconfig.defaults.esp32c3` hold
+  the pins (ESP32-C3 pin set tested). README instructions for building per
+  target. `https` and `ipcam` had no defaults files before.
+- `https` and `ipcam` use the 1.5 MB single-app partition table
+  (`CONFIG_PARTITION_TABLE_SINGLE_APP_LARGE`). The default 1 MB app partition
+  overflows on ESP32-C3 and was 98% full on ESP32.
 
 ### Fixed
 
@@ -30,8 +35,8 @@ ESP32-C3 with ESP-IDF v6.0.3; builds on v5.5.2 and v6.1.1.
   blacks, tinted white.
 - **Horizontal mirror root cause.** Display Function Control (`0xB6`, SS bit)
   now takes effect, so the image is correct without a mirror call.
-- `examples/lvgl_demo`: MISO was hard-coded to GPIO19, which is USB D+ on
-  ESP32-C3 and broke the USB-Serial-JTAG console. It now uses
+- Examples: MISO was hard-coded to GPIO19, which is USB D+ on ESP32-C3 and
+  broke the USB-Serial-JTAG console. All examples now use
   `CONFIG_ILI9486_PIN_MISO`.
 - `test_app/CMakeLists.txt`: `EXTRA_COMPONENT_DIRS` paths were missing a `/`,
   so the driver and test components could not be found.
@@ -45,7 +50,8 @@ ESP32-C3 with ESP-IDF v6.0.3; builds on v5.5.2 and v6.1.1.
   which IDF v6 removed.
 - Mirror workaround removed from `basic_init`, `https` and `lvgl_demo`.
 - `.gitignore` ignores per-target build folders (`build_*/`) and generated
-  `sdkconfig.*` files, but keeps `sdkconfig.defaults*` tracked.
+  `sdkconfig.*` files, but keeps `sdkconfig.defaults*` tracked. Stray
+  `sdkconfig.old` files removed from `https` and `ipcam`.
 
 ---
 

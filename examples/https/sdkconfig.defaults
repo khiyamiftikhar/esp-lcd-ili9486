@@ -1,0 +1,8 @@
+# Settings shared by all targets.
+# Pins and SPI clock are in sdkconfig.defaults.<target> (esp32, esp32c3).
+CONFIG_ILI9486_H_RES=320
+CONFIG_ILI9486_V_RES=480
+
+# Wi-Fi + TLS + JPEG does not fit the default 1 MB app partition on
+# ESP32-C3 (and barely on ESP32). Use the 1.5 MB single-app table.
+CONFIG_PARTITION_TABLE_SINGLE_APP_LARGE=y

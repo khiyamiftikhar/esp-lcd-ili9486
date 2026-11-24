@@ -21,7 +21,7 @@ static const char *TAG = "ili9486_display";
 
 #define LCD_HOST           CONFIG_ILI9486_SPI_HOST
 #define PIN_NUM_MOSI       CONFIG_ILI9486_PIN_MOSI
-#define PIN_NUM_MISO       19  // Required for touch controller on shared SPI bus
+#define PIN_NUM_MISO       CONFIG_ILI9486_PIN_MISO
 #define PIN_NUM_CLK        CONFIG_ILI9486_PIN_CLK
 #define PIN_NUM_CS         CONFIG_ILI9486_PIN_CS
 #define PIN_NUM_DC         CONFIG_ILI9486_PIN_DC
