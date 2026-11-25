@@ -51,19 +51,19 @@ dependencies:
   khiyamiftikhar/esp-lcd-ili9486: "^2.0.0"
 ```
 
-### Upgrading from 1.x
-
-Version 2.0.0 fixes the init sequence so the panel's settings are actually
-applied. As a result, the image is no longer mirrored, so **remove**
-`esp_lcd_panel_mirror(panel, true, false)` or LVGL `rotation.mirror_x = true`
-if you added it as a workaround. See [CHANGELOG.md](CHANGELOG.md).
-
 Then configure via:
 
 ```
 idf.py menuconfig
 Component config → ILI9486 Panel Driver
 ```
+
+### Upgrading from 1.x
+
+Version 2.0.0 fixes the init sequence so the panel's settings are actually
+applied. As a result, the image is no longer mirrored, so **remove**
+`esp_lcd_panel_mirror(panel, true, false)` or LVGL `rotation.mirror_x = true`
+if you added it as a workaround. See [CHANGELOG.md](CHANGELOG.md).
 
 ---
 
@@ -88,23 +88,29 @@ For complete initialization flows, see the examples below.
 ---
 
 ## Examples
- 
+
+### `examples/basic_init`
+Raw `esp_lcd` usage without LVGL: initializes the panel and runs colour,
+addressing and orientation test patterns.
+
+### `examples/lvgl_demo`
+LVGL integration via `esp_lvgl_port`, with a full colour verification
+sequence (primary colours, rainbow, widgets and a colour-cycling progress bar).
+
 ### `examples/ipcam`
 Streams a live JPEG from an IP camera URL over HTTP and renders it to the panel
 in 480×320 landscape mode, row by row. No framebuffer. Demonstrates SPI panel
 init, DMA-backed row writes, FreeRTOS async decode, and HTTP streaming with an
 input prefetch buffer.
- 
+
 ### `examples/https`
 Fetches the classic [Lenna](https://i.gzn.jp/img/2009/06/18/lenna/000.jpg)
-lenna test image over HTTPS and displays it on the panel with automatic scale
+test image over HTTPS and displays it on the panel with automatic scale
 selection and pan control. Demonstrates TLS, scale/pan,
 and correct resource lifetime across async decode callbacks.
- 
-### `examples/basic_init` — Raw `esp_lcd` usage (no LVGL)
-### `examples/lvgl_demo` — LVGL integration with full colour verification sequence
 
-Each example is self-contained and ready to build.
+Each example is self-contained and ready to build for ESP32 or ESP32-C3 (see
+[Building the Examples for Other Targets](#building-the-examples-for-other-targets)).
 
 ---
 
@@ -146,6 +152,18 @@ esp_lcd_panel_dev_config_t panel_config = {
 
 The driver sets the panel's BGR bit itself, so `rgb_ele_order` does not change
 the colours. The examples use `LCD_RGB_ELEMENT_ORDER_RGB`.
+
+**Byte order:** the panel expects each pixel high byte first, but ESP32 chips
+store `uint16_t` low byte first. Swap the bytes of every pixel you pass to
+`esp_lcd_panel_draw_bitmap()`:
+
+```c
+#define RGB565(r, g, b) __builtin_bswap16((uint16_t)((((r) & 0xF8) << 8) | \
+                                                     (((g) & 0xFC) << 3) | ((b) >> 3)))
+```
+
+With LVGL, set `.flags.swap_bytes = true` in `lvgl_port_display_cfg_t` instead.
+Without the swap, red shows as blue, green as red and blue as green.
 
 ---
 
@@ -216,8 +234,8 @@ idf.py -B build_esp32c3 -D SDKCONFIG=sdkconfig.esp32c3 -D SDKCONFIG_DEFAULTS="sd
 ```
 
 Setting `SDKCONFIG_DEFAULTS` replaces the default list, so always list
-`sdkconfig.defaults` first, then the target file. After changing a defaults file, delete the matching
-`sdkconfig.<target>` so it is regenerated.
+`sdkconfig.defaults` first, then the target file. After changing a defaults
+file, delete the matching `sdkconfig.<target>` so it is regenerated.
 
 ---
 
@@ -249,6 +267,21 @@ Unity tests verify pixel correctness, window addressing, orientation, and full-s
 The diagram below shows the ESP32 connections from `sdkconfig.defaults.esp32` for the 3.5 inch RPI LCD.
 
 ![3.5 inch RPI](https://raw.githubusercontent.com/khiyamiftikhar/esp-lcd-ili9486/v1.0.2/docs/RPI_3_5.jpg)
+
+ESP32-C3 connections, from `sdkconfig.defaults.esp32c3`:
+
+| Display | ESP32-C3 |
+|---------|----------|
+| MOSI / SDA | GPIO 7 |
+| SCLK | GPIO 6 |
+| CS | GPIO 10 |
+| DC / RS | GPIO 5 |
+| RST | GPIO 4 |
+| BL / LED | GPIO 3 |
+| VCC / GND | 3.3 V / GND |
+
+On ESP32-C3, avoid GPIO 2, 8 and 9 (strapping), 11–17 (flash on most
+modules), 18–19 (USB) and 20–21 (UART0).
 
 ---
 
