@@ -1,3 +1,9 @@
+# Settings shared by all targets.
+# Pins and SPI clock are in sdkconfig.defaults.<target> (esp32, esp32c3).
+
 # Disable task watchdog for test app
 # Tests involve long vTaskDelays for visual inspection
 CONFIG_ESP_TASK_WDT_EN=n
+
+CONFIG_ILI9486_H_RES=320
+CONFIG_ILI9486_V_RES=480

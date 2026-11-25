@@ -22,7 +22,7 @@ static const char *TAG = "ili9486_display";
 
 #define LCD_HOST           CONFIG_ILI9486_SPI_HOST
 #define PIN_NUM_MOSI       CONFIG_ILI9486_PIN_MOSI
-#define PIN_NUM_MISO        -1 // not used, but required by bus config
+#define PIN_NUM_MISO       CONFIG_ILI9486_PIN_MISO
 #define PIN_NUM_CLK        CONFIG_ILI9486_PIN_CLK
 #define PIN_NUM_CS         CONFIG_ILI9486_PIN_CS
 #define PIN_NUM_DC         CONFIG_ILI9486_PIN_DC
@@ -65,10 +65,10 @@ esp_err_t ili9486_display_init(void)
         .dc_gpio_num       = PIN_NUM_DC,
         .cs_gpio_num       = PIN_NUM_CS,
         .pclk_hz           = LCD_PIXEL_CLOCK_HZ,
-        .lcd_cmd_bits      = 16,   // was 8
-        .lcd_param_bits    = 16,   // was 8
+        .lcd_cmd_bits      = 8,    // driver pads parameters to 16 bits itself
+        .lcd_param_bits    = 8,
         .spi_mode          = 0,
-        .trans_queue_depth = 10,
+        .trans_queue_depth = 1,
         //.on_color_trans_done = ili9486_color_trans_done_cb
     };
     ESP_RETURN_ON_ERROR(
@@ -88,6 +88,7 @@ esp_err_t ili9486_display_init(void)
     ESP_LOGI(TAG, "Install ILI9486 panel driver");
     esp_lcd_panel_dev_config_t panel_config = {
         .reset_gpio_num  = PIN_NUM_RST,
+        .rgb_ele_order   = LCD_RGB_ELEMENT_ORDER_RGB,
         .bits_per_pixel  = 16,
     };
     ESP_RETURN_ON_ERROR(

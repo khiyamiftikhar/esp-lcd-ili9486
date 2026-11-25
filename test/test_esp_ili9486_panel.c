@@ -16,7 +16,6 @@
 #define LCD_H  480
 
 // ── RGB565 helpers ────────────────────────────────────────────────────────────
-// NOTE: ILI9486 is BGR so colours may appear swapped — that's useful info!
 #define RGB565(r,g,b)  ((uint16_t)((((r)&0xF8)<<8)|(((g)&0xFC)<<3)|((b)>>3)))
 #define WHITE   0xFFFF
 #define BLACK   0x0000
@@ -112,7 +111,7 @@ static void draw_pixel(esp_lcd_panel_handle_t panel, int x, int y, uint16_t colo
  * Pass: full screen changes colour each time
  * Fail (strip only):      RASET addressing wrong
  * Fail (dim grey):        pixel byte order wrong
- * Fail (wrong hue):       BGR/RGB swapped — toggle MADCTL bit 3
+ * Fail (wrong hue):       R/B swapped — check the BGR bit in the driver's MADCTL
  */
 TEST_CASE("full screen solid colours", "[ili9486]")
 {
@@ -136,7 +135,7 @@ TEST_CASE("full screen solid colours", "[ili9486]")
     vTaskDelay(pdMS_TO_TICKS(2000));
 
     ESP_LOGI(TAG, "VISUAL CHECK: Full screen changed colour 4 times");
-    ESP_LOGI(TAG, "  RED shows as BLUE -> toggle MADCTL bit 3 (BGR)");
+    ESP_LOGI(TAG, "  RED shows as BLUE -> BGR bit in the driver's MADCTL");
     ESP_LOGI(TAG, "  Only top strip    -> RASET addressing wrong");
     ESP_LOGI(TAG, "  Dim grey          -> pixel byte order wrong");
     TEST_PASS();
@@ -204,10 +203,11 @@ TEST_CASE("vertical colour bars", "[ili9486]")
  *   Bottom-left  = BLUE
  *   Bottom-right = WHITE
  *
- * Pass: correct colour in correct corner
- * Fail (H mirror):  toggle MADCTL bit 6 (MX)
- * Fail (V mirror):  toggle MADCTL bit 7 (MY)
- * Fail (rotated):   toggle MADCTL bit 5 (MV) and swap H/V res
+ * Pass: correct colour in correct corner, with no mirror call (driver 2.0.0+)
+ * Fail (H mirror):  init settings not reaching the panel (0xB6 SS bit), or
+ *                   the app still calls esp_lcd_panel_mirror(panel, true, false)
+ * Fail (V mirror):  esp_lcd_panel_mirror(panel, false, true)
+ * Fail (rotated):   esp_lcd_panel_swap_xy() and swap H/V res
  */
 TEST_CASE("corner orientation markers", "[ili9486]")
 {
@@ -224,9 +224,9 @@ TEST_CASE("corner orientation markers", "[ili9486]")
     vTaskDelay(pdMS_TO_TICKS(3000));
 
     ESP_LOGI(TAG, "VISUAL CHECK: TL=RED  TR=GREEN  BL=BLUE  BR=WHITE");
-    ESP_LOGI(TAG, "  H mirrored -> toggle MADCTL bit 6 (MX 0x40)");
-    ESP_LOGI(TAG, "  V mirrored -> toggle MADCTL bit 7 (MY 0x80)");
-    ESP_LOGI(TAG, "  Rotated 90 -> toggle MADCTL bit 5 (MV 0x20)");
+    ESP_LOGI(TAG, "  H mirrored -> init not applied, or app still mirrors X");
+    ESP_LOGI(TAG, "  V mirrored -> esp_lcd_panel_mirror(panel, false, true)");
+    ESP_LOGI(TAG, "  Rotated 90 -> esp_lcd_panel_swap_xy() and swap H/V res");
     TEST_PASS();
 }
 
@@ -237,7 +237,7 @@ TEST_CASE("corner orientation markers", "[ili9486]")
  *
  * Pass: smooth gradient, no banding
  * Fail (banding):       RASET byte order or partial flush issue
- * Fail (wrong colours): BGR/RGB issue in rgb565_to_rgb666 conversion
+ * Fail (washed out):    init settings (gamma/VCOM) not reaching the panel
  * Fail (corruption):    DMA or buffer size issue
  */
 TEST_CASE("full screen gradient", "[ili9486]")
@@ -255,6 +255,6 @@ TEST_CASE("full screen gradient", "[ili9486]")
 
     ESP_LOGI(TAG, "VISUAL CHECK: Smooth red->blue gradient top to bottom");
     ESP_LOGI(TAG, "  Banding      -> RASET byte ordering issue");
-    ESP_LOGI(TAG, "  Wrong colour -> BGR/RGB in rgb565_to_rgb666");
+    ESP_LOGI(TAG, "  Washed out   -> gamma/VCOM init not reaching the panel");
     TEST_PASS();
 }

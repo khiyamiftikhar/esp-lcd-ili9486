@@ -22,6 +22,10 @@ ESP32-C3 with ESP-IDF v6.0.3; builds on v5.5.2 and v6.1.1.
 - `https` and `ipcam` use the 1.5 MB single-app partition table
   (`CONFIG_PARTITION_TABLE_SINGLE_APP_LARGE`). The default 1 MB app partition
   overflows on ESP32-C3 and was 98% full on ESP32.
+- `test_app`: same per-target defaults as the examples. The test init now
+  matches `basic_init` (8-bit command/parameter bits, queue depth 1, MISO
+  from Kconfig); it still used 16-bit bits, which would pad the init
+  parameters twice. Outdated hints in the test cases updated.
 
 ### Fixed
 

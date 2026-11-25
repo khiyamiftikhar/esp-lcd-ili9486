@@ -225,8 +225,12 @@ Setting `SDKCONFIG_DEFAULTS` replaces the default list, so always list
 
 ```bash
 cd test_app
+idf.py set-target esp32      # or esp32c3
 idf.py build flash monitor
 ```
+
+`test_app` uses the same per-target defaults files as the examples
+(see [Building the Examples for Other Targets](#building-the-examples-for-other-targets)).
 
 Unity tests verify pixel correctness, window addressing, orientation, and full-screen rendering.
 
