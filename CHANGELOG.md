@@ -26,6 +26,9 @@ ESP32-C3 with ESP-IDF v6.0.3; builds on v5.5.2 and v6.1.1.
   matches `basic_init` (8-bit command/parameter bits, queue depth 1, MISO
   from Kconfig); it still used 16-bit bits, which would pad the init
   parameters twice. Outdated hints in the test cases updated.
+- `test_app`: colours were byte-swapped (RED showed as blue, GREEN as red,
+  BLUE as green). `RGB565()` now swaps bytes like `basic_init`, and the
+  helpers wait for the last DMA row before the pixel buffer is reused.
 
 ### Fixed
 

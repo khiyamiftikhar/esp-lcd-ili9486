@@ -16,7 +16,9 @@
 #define LCD_H  480
 
 // ── RGB565 helpers ────────────────────────────────────────────────────────────
-#define RGB565(r,g,b)  ((uint16_t)((((r)&0xF8)<<8)|(((g)&0xFC)<<3)|((b)>>3)))
+// The panel expects each pixel high byte first; ESP32 stores uint16_t low byte
+// first, so swap (same as basic_init, and LVGL's swap_bytes = true).
+#define RGB565(r,g,b)  __builtin_bswap16((uint16_t)((((r)&0xF8)<<8)|(((g)&0xFC)<<3)|((b)>>3)))
 #define WHITE   0xFFFF
 #define BLACK   0x0000
 #define RED     RGB565(255,0,0)
@@ -42,6 +44,10 @@ static void fill_rect(esp_lcd_panel_handle_t panel,
     for (int y = y0; y <= y1; y++) {
         esp_lcd_panel_draw_bitmap(panel, x0, y, x1 + 1, y + 1, row_buf);
     }
+
+    /* The last row is still being sent by DMA when draw_bitmap returns.
+     * Wait before row_buf is refilled by the next call (same as basic_init). */
+    vTaskDelay(pdMS_TO_TICKS(10));
 }
 
 // ── Fill entire screen ────────────────────────────────────────────────────────
@@ -53,7 +59,11 @@ static void fill_screen(esp_lcd_panel_handle_t panel, uint16_t colour)
 // ── Single pixel ──────────────────────────────────────────────────────────────
 static void draw_pixel(esp_lcd_panel_handle_t panel, int x, int y, uint16_t colour)
 {
-    esp_lcd_panel_draw_bitmap(panel, x, y, x + 1, y + 1, &colour);
+    /* static: DMA reads the pixel after this function returns */
+    static uint16_t px;
+    px = colour;
+    esp_lcd_panel_draw_bitmap(panel, x, y, x + 1, y + 1, &px);
+    vTaskDelay(pdMS_TO_TICKS(10));
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -245,12 +255,17 @@ TEST_CASE("full screen gradient", "[ili9486]")
     esp_lcd_panel_handle_t panel = ili9486_display_get_panel();
     TEST_ASSERT_NOT_NULL(panel);
 
+    /* Two row buffers, used alternately: drawing row y waits for row y-1 to
+     * finish, so the buffer of row y-2 is free to refill. */
+    static uint16_t grad_buf[2][LCD_W];
     for (int y = 0; y < LCD_H; y++) {
-        uint8_t val    = (y * 255) / (LCD_H - 1);
+        uint16_t *buf   = grad_buf[y & 1];
+        uint8_t val     = (y * 255) / (LCD_H - 1);
         uint16_t colour = RGB565(val, 0, 255 - val);
-        for (int x = 0; x < LCD_W; x++) row_buf[x] = colour;
-        esp_lcd_panel_draw_bitmap(panel, 0, y, LCD_W, y + 1, row_buf);
+        for (int x = 0; x < LCD_W; x++) buf[x] = colour;
+        esp_lcd_panel_draw_bitmap(panel, 0, y, LCD_W, y + 1, buf);
     }
+    vTaskDelay(pdMS_TO_TICKS(10));   /* last row's DMA */
     vTaskDelay(pdMS_TO_TICKS(3000));
 
     ESP_LOGI(TAG, "VISUAL CHECK: Smooth red->blue gradient top to bottom");
